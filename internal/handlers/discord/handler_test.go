@@ -184,21 +184,39 @@ func TestHandler_EmbedColors(t *testing.T) {
 }
 
 func TestHandler_ErrorFormatting(t *testing.T) {
-	// Document expected error formatting behavior
 	tests := []struct {
-		name string
-		err  error
+		name    string
+		err     error
+		wantMsg string
 	}{
-		{"context deadline exceeded", context.DeadlineExceeded},
-		{"context canceled", context.Canceled},
-		{"generic error", errors.New("something went wrong")},
+		{
+			name:    "nil error",
+			err:     nil,
+			wantMsg: "",
+		},
+		{
+			name:    "context deadline exceeded",
+			err:     context.DeadlineExceeded,
+			wantMsg: "⏱️ Request timed out. Please try again.",
+		},
+		{
+			name:    "context canceled",
+			err:     context.Canceled,
+			wantMsg: "🚫 Request was cancelled.",
+		},
+		{
+			name:    "generic error",
+			err:     errors.New("something went wrong"),
+			wantMsg: "❌ An error occurred while processing your request. Please try again later.",
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// This test documents expected error message behavior
-			// Direct testing would require exposing formatErrorMessage
-			_ = tt
+			got := discord.FormatErrorMessage(tt.err)
+			if got != tt.wantMsg {
+				t.Errorf("FormatErrorMessage() = %q, want %q", got, tt.wantMsg)
+			}
 		})
 	}
 }

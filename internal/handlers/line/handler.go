@@ -231,7 +231,7 @@ func (h *Handler) handleMessageEvent(ctx context.Context, e webhook.MessageEvent
 		resp, err := h.router.Route(ctx, msg)
 		if err != nil {
 			h.logger.Error(ctx, "failed to route message", "error", err)
-			_ = h.sendReply(ctx, e.ReplyToken, formatErrorMessage(err))
+			_ = h.sendReply(ctx, e.ReplyToken, FormatErrorMessage(err))
 			return
 		}
 		if resp != nil && resp.Text != "" {
@@ -246,7 +246,9 @@ func (h *Handler) handleFollowEvent(ctx context.Context, e webhook.FollowEvent) 
 	h.logger.Info(ctx, "user followed bot", "user_id", userID)
 
 	// Send welcome message
-	_ = h.sendReply(ctx, e.ReplyToken, "Welcome! I'm your MacMini Assistant. Send me a message to get started.")
+	if err := h.sendReply(ctx, e.ReplyToken, "Welcome! I'm your MacMini Assistant. Send me a message to get started."); err != nil {
+		h.logger.Error(ctx, "failed to send welcome message", "user_id", userID, "error", err)
+	}
 }
 
 // handleUnfollowEvent processes unfollow events (user blocks the bot).
@@ -266,16 +268,29 @@ func (h *Handler) handlePostbackEvent(ctx context.Context, e webhook.PostbackEve
 
 // getUserIDFromSource extracts the user ID from the event source.
 func (h *Handler) getUserIDFromSource(source webhook.SourceInterface) string {
+	var userID string
+	var sourceType string
+
 	switch s := source.(type) {
 	case webhook.UserSource:
-		return s.UserId
+		userID = s.UserId
+		sourceType = "user"
 	case webhook.GroupSource:
-		return s.UserId
+		userID = s.UserId
+		sourceType = "group"
 	case webhook.RoomSource:
-		return s.UserId
+		userID = s.UserId
+		sourceType = "room"
 	default:
+		h.logger.Debug(context.Background(), "unknown source type", "type", fmt.Sprintf("%T", source))
 		return ""
 	}
+
+	if userID == "" {
+		h.logger.Warn(context.Background(), "empty user ID from source", "source_type", sourceType)
+	}
+
+	return userID
 }
 
 // sendReply sends a reply message using the reply token.
@@ -341,8 +356,8 @@ func (h *Handler) PushMessage(ctx context.Context, userID string, message string
 	return nil
 }
 
-// formatErrorMessage formats an error into a user-friendly message.
-func formatErrorMessage(err error) string {
+// FormatErrorMessage formats an error into a user-friendly message.
+func FormatErrorMessage(err error) string {
 	if err == nil {
 		return ""
 	}

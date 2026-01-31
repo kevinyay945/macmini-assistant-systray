@@ -224,7 +224,7 @@ func (h *Handler) handleMessageCreate(s *discordgo.Session, m *discordgo.Message
 		resp, err := h.router.Route(ctx, msg)
 		if err != nil {
 			h.logger.Error(ctx, "failed to route message", "error", err)
-			_, _ = s.ChannelMessageSend(m.ChannelID, formatErrorMessage(err))
+			_, _ = s.ChannelMessageSend(m.ChannelID, FormatErrorMessage(err))
 			return
 		}
 		if resp != nil && resp.Text != "" {
@@ -249,9 +249,17 @@ func (h *Handler) handleInteractionCreate(s *discordgo.Session, i *discordgo.Int
 func (h *Handler) handleSlashCommand(ctx context.Context, s *discordgo.Session, i *discordgo.InteractionCreate) {
 	cmdName := i.ApplicationCommandData().Name
 
+	// Get user ID safely - Member is nil for DM interactions
+	userID := ""
+	if i.Member != nil && i.Member.User != nil {
+		userID = i.Member.User.ID
+	} else if i.User != nil {
+		userID = i.User.ID
+	}
+
 	h.logger.Info(ctx, "received slash command",
 		"command", cmdName,
-		"user_id", i.Member.User.ID,
+		"user_id", userID,
 	)
 
 	var response *discordgo.InteractionResponse
@@ -279,7 +287,7 @@ func (h *Handler) handleSlashCommand(ctx context.Context, s *discordgo.Session, 
 }
 
 // handleStatusCommand handles the /status slash command.
-func (h *Handler) handleStatusCommand(ctx context.Context) *discordgo.InteractionResponse {
+func (h *Handler) handleStatusCommand(_ context.Context) *discordgo.InteractionResponse {
 	h.mu.RLock()
 	started := h.started
 	h.mu.RUnlock()
@@ -312,7 +320,7 @@ func (h *Handler) handleStatusCommand(ctx context.Context) *discordgo.Interactio
 }
 
 // handleToolsCommand handles the /tools slash command.
-func (h *Handler) handleToolsCommand(ctx context.Context) *discordgo.InteractionResponse {
+func (h *Handler) handleToolsCommand(_ context.Context) *discordgo.InteractionResponse {
 	var toolsList strings.Builder
 	toolsList.WriteString("**Available Tools:**\n")
 
@@ -338,7 +346,7 @@ func (h *Handler) handleToolsCommand(ctx context.Context) *discordgo.Interaction
 }
 
 // handleHelpCommand handles the /help slash command.
-func (h *Handler) handleHelpCommand(ctx context.Context) *discordgo.InteractionResponse {
+func (h *Handler) handleHelpCommand(_ context.Context) *discordgo.InteractionResponse {
 	embed := &discordgo.MessageEmbed{
 		Title:       "MacMini Assistant Help",
 		Color:       ColorBlue,
@@ -375,9 +383,9 @@ func (h *Handler) handleHelpCommand(ctx context.Context) *discordgo.InteractionR
 }
 
 // handleComponentInteraction processes button/select menu interactions.
-func (h *Handler) handleComponentInteraction(ctx context.Context, s *discordgo.Session, i *discordgo.InteractionCreate) {
+func (h *Handler) handleComponentInteraction(_ context.Context, _ *discordgo.Session, i *discordgo.InteractionCreate) {
 	// Placeholder for future component interactions
-	h.logger.Debug(ctx, "received component interaction",
+	h.logger.Debug(context.Background(), "received component interaction",
 		"custom_id", i.MessageComponentData().CustomID,
 	)
 }
@@ -599,8 +607,8 @@ func (h *Handler) SendEmbed(ctx context.Context, channelID string, embed *discor
 	return nil
 }
 
-// formatErrorMessage formats an error into a user-friendly message.
-func formatErrorMessage(err error) string {
+// FormatErrorMessage formats an error into a user-friendly message.
+func FormatErrorMessage(err error) string {
 	if err == nil {
 		return ""
 	}

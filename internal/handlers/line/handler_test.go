@@ -194,6 +194,11 @@ func TestHandler_ErrorFormatting(t *testing.T) {
 		wantMsg string
 	}{
 		{
+			name:    "nil error",
+			err:     nil,
+			wantMsg: "",
+		},
+		{
 			name:    "context deadline exceeded",
 			err:     context.DeadlineExceeded,
 			wantMsg: "Request timed out. Please try again.",
@@ -210,14 +215,12 @@ func TestHandler_ErrorFormatting(t *testing.T) {
 		},
 	}
 
-	// These tests verify the error formatting behavior is correct
-	// The actual formatErrorMessage function is internal but we can verify
-	// behavior through the handler's response to router errors
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// This test documents expected error message behavior
-			// Direct testing would require exposing formatErrorMessage
-			_ = tt
+			got := line.FormatErrorMessage(tt.err)
+			if got != tt.wantMsg {
+				t.Errorf("FormatErrorMessage() = %q, want %q", got, tt.wantMsg)
+			}
 		})
 	}
 }
