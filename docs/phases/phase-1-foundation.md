@@ -413,6 +413,20 @@ require (
 **Safety:**
 14. **GetToolConfig Returns Copy**: Changed `Config.GetToolConfig()` to return `(ToolConfig, bool)` instead of `(*ToolConfig, bool)`. Returning a pointer to a slice element is dangerous because if the slice is reallocated (e.g., during config reload), the pointer becomes dangling. Returning a copy is safer and prevents accidental mutation of the original config.
 
+### Code Review Fixes (2026-01-31 - Round 3)
+
+**Type System & Validation:**
+15. **Full Unsigned Integer Support**: Enhanced `validateParamType()` to support all unsigned integer types (`uint`, `uint8`, `uint16`, `uint32`, `uint64`) for both `"integer"` and `"number"` parameter types. Also added `int8` and `int16` support. This ensures parameters from non-JSON sources (like internal Go calls) are validated correctly.
+
+**Configuration Validation:**
+16. **Copilot Timeout Range Validation**: Added validation for `copilot.timeout_seconds` to reject negative values and values exceeding 1 hour (3600 seconds). This prevents misconfigurations that could cause hung requests or unreasonable resource usage.
+
+**Deep Copy Implementation:**
+17. **Recursive Deep Copy for Config**: Implemented `deepCopyMap()` function for recursive deep copying of `map[string]interface{}` including nested maps and slices. `GetToolConfig()` now returns a truly deep copy, preventing modifications to the copy from affecting the original config. Added comprehensive tests for nested map and array mutation protection.
+
+**Documentation:**
+18. **AppError.Is() Behavior Documentation**: Enhanced documentation for `AppError.Is()` method to clearly explain that it performs "category-based" comparison using only the Code field. Added example code showing that `errors.Is(err, ErrToolNotFound)` returns true for any error with the same code, regardless of Message, Cause, or Extra fields. Users who need precise matching should use `errors.As` and check specific fields.
+
 ---
 
 ## Time Tracking

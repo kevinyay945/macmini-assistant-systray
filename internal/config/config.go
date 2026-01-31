@@ -322,6 +322,15 @@ func (c *Config) Validate() error {
 		}
 	}
 
+	// Validate Copilot timeout
+	if c.Copilot.TimeoutSeconds < 0 {
+		errs = append(errs, errors.New("copilot.timeout_seconds cannot be negative"))
+	}
+	const maxTimeoutSeconds = 3600 // 1 hour maximum
+	if c.Copilot.TimeoutSeconds > maxTimeoutSeconds {
+		errs = append(errs, fmt.Errorf("copilot.timeout_seconds exceeds maximum (%d), got %d", maxTimeoutSeconds, c.Copilot.TimeoutSeconds))
+	}
+
 	// Validate updater config
 	if c.Updater.Enabled && c.Updater.GitHubRepo == "" {
 		errs = append(errs, errors.New("updater.github_repo is required when updater is enabled"))
@@ -330,26 +339,49 @@ func (c *Config) Validate() error {
 	return errors.Join(errs...)
 }
 
+// deepCopyMap recursively copies a map[string]interface{} to prevent shared mutations.
+// Handles nested maps and slices. Other types are copied by value.
+func deepCopyMap(m map[string]interface{}) map[string]interface{} {
+	if m == nil {
+		return nil
+	}
+	result := make(map[string]interface{}, len(m))
+	for k, v := range m {
+		switch typed := v.(type) {
+		case map[string]interface{}:
+			result[k] = deepCopyMap(typed)
+		case []interface{}:
+			cp := make([]interface{}, len(typed))
+			for i, item := range typed {
+				if nested, ok := item.(map[string]interface{}); ok {
+					cp[i] = deepCopyMap(nested)
+				} else {
+					cp[i] = item
+				}
+			}
+			result[k] = cp
+		default:
+			result[k] = v
+		}
+	}
+	return result
+}
+
 // GetToolConfig returns a copy of the configuration for a specific tool by name.
-// Returns a copy to prevent callers from accidentally modifying the original config
+// Returns a deep copy to prevent callers from accidentally modifying the original config
 // or holding a dangling pointer if the config's Tools slice is reallocated.
-// Note: The Config map is copied one level deep. Nested maps/slices are NOT deep-copied.
+// The Config map is recursively deep-copied, including nested maps and slices.
 func (c *Config) GetToolConfig(name string) (ToolConfig, bool) {
 	for _, tool := range c.Tools {
 		if tool.Name == name {
 			// Deep copy the tool config including the Config map
-			copy := ToolConfig{
+			toolCopy := ToolConfig{
 				Name:    tool.Name,
 				Type:    tool.Type,
 				Enabled: tool.Enabled,
+				Config:  deepCopyMap(tool.Config),
 			}
-			if tool.Config != nil {
-				copy.Config = make(map[string]interface{}, len(tool.Config))
-				for k, v := range tool.Config {
-					copy.Config[k] = v
-				}
-			}
-			return copy, true
+			return toolCopy, true
 		}
 	}
 	return ToolConfig{}, false

@@ -431,13 +431,26 @@ func TestRegistry_Execute_ValidParamTypes(t *testing.T) {
 	}{
 		{"string", "string", "hello"},
 		{"integer_int", "integer", 42},
+		{"integer_int8", "integer", int8(42)},
+		{"integer_int16", "integer", int16(42)},
+		{"integer_int32", "integer", int32(42)},
 		{"integer_int64", "integer", int64(42)},
+		{"integer_uint", "integer", uint(42)},
+		{"integer_uint8", "integer", uint8(42)},
+		{"integer_uint16", "integer", uint16(42)},
+		{"integer_uint32", "integer", uint32(42)},
+		{"integer_uint64", "integer", uint64(42)},
 		{"integer_float64", "integer", float64(42)}, // JSON numbers
 		{"boolean", "boolean", true},
 		{"array_interface", "array", []interface{}{"a", "b"}},
 		{"array_string", "array", []string{"a", "b"}},
 		{"array_bool", "array", []bool{true, false}},
 		{"array_int", "array", []int{1, 2, 3}},
+		{"number_int", "number", 42},
+		{"number_uint", "number", uint(42)},
+		{"number_uint64", "number", uint64(42)},
+		{"number_float32", "number", float32(3.14)},
+		{"number_float64", "number", float64(3.14)},
 	}
 
 	for _, tt := range tests {

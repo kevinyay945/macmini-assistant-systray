@@ -495,3 +495,103 @@ func TestConfig_GetEnabledTools(t *testing.T) {
 		t.Errorf("GetEnabledTools() returned %d tools, want 2", len(enabled))
 	}
 }
+
+func TestConfig_Validate_CopilotTimeoutNegative(t *testing.T) {
+	cfg := &config.Config{
+		App:     config.AppConfig{LogLevel: "info"},
+		LINE:    config.LINEConfig{WebhookPort: 8080},
+		Copilot: config.CopilotConfig{TimeoutSeconds: -1},
+	}
+
+	err := cfg.Validate()
+	if err == nil {
+		t.Error("Validate() should return error for negative timeout")
+	}
+}
+
+func TestConfig_Validate_CopilotTimeoutTooHigh(t *testing.T) {
+	cfg := &config.Config{
+		App:     config.AppConfig{LogLevel: "info"},
+		LINE:    config.LINEConfig{WebhookPort: 8080},
+		Copilot: config.CopilotConfig{TimeoutSeconds: 7200}, // 2 hours, exceeds 1 hour max
+	}
+
+	err := cfg.Validate()
+	if err == nil {
+		t.Error("Validate() should return error for timeout exceeding maximum")
+	}
+}
+
+func TestConfig_Validate_CopilotTimeoutValid(t *testing.T) {
+	cfg := &config.Config{
+		App:     config.AppConfig{LogLevel: "info"},
+		LINE:    config.LINEConfig{WebhookPort: 8080},
+		Copilot: config.CopilotConfig{TimeoutSeconds: 600}, // 10 minutes, valid
+	}
+
+	err := cfg.Validate()
+	if err != nil {
+		t.Errorf("Validate() should not return error for valid timeout: %v", err)
+	}
+}
+
+func TestConfig_GetToolConfig_DeepCopy(t *testing.T) {
+	nestedMap := map[string]interface{}{
+		"nested_key": "nested_value",
+	}
+	cfg := &config.Config{
+		Tools: []config.ToolConfig{
+			{
+				Name:    "tool1",
+				Type:    "downie",
+				Enabled: true,
+				Config: map[string]interface{}{
+					"outer_key":  "outer_value",
+					"nested_map": nestedMap,
+					"array": []interface{}{
+						map[string]interface{}{"item_key": "item_value"},
+						"string_item",
+					},
+				},
+			},
+		},
+	}
+
+	// Get a copy
+	toolCopy, found := cfg.GetToolConfig("tool1")
+	if !found {
+		t.Fatal("GetToolConfig() should find tool1")
+	}
+
+	// Modify the copy's nested map
+	if nested, ok := toolCopy.Config["nested_map"].(map[string]interface{}); ok {
+		nested["nested_key"] = "modified_value"
+	}
+
+	// Verify the original is unchanged
+	if originalNested, ok := cfg.Tools[0].Config["nested_map"].(map[string]interface{}); ok {
+		if originalNested["nested_key"] != "nested_value" {
+			t.Error("GetToolConfig() should return a deep copy - original nested map was modified")
+		}
+	}
+
+	// Modify the copy's outer value
+	toolCopy.Config["outer_key"] = "modified_outer"
+	if cfg.Tools[0].Config["outer_key"] != "outer_value" {
+		t.Error("GetToolConfig() should return a deep copy - original outer value was modified")
+	}
+
+	// Modify the copy's array
+	if arr, ok := toolCopy.Config["array"].([]interface{}); ok {
+		if itemMap, ok := arr[0].(map[string]interface{}); ok {
+			itemMap["item_key"] = "modified_item"
+		}
+	}
+	if originalArr, ok := cfg.Tools[0].Config["array"].([]interface{}); ok {
+		if originalItem, ok := originalArr[0].(map[string]interface{}); ok {
+			if originalItem["item_key"] != "item_value" {
+				t.Error("GetToolConfig() should return a deep copy - original array item was modified")
+			}
+		}
+	}
+}

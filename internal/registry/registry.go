@@ -263,9 +263,9 @@ func validateParamType(val interface{}, expectedType string, allowed []string) e
 			return fmt.Errorf("value %q not in allowed values: %v", strVal, allowed)
 		}
 	case "integer":
-		// Handle int, int64, float64 (JSON unmarshal produces float64 for numbers)
+		// Handle all integer types including unsigned, plus float64 (JSON unmarshal produces float64 for numbers)
 		switch v := val.(type) {
-		case int, int32, int64:
+		case int, int8, int16, int32, int64, uint, uint8, uint16, uint32, uint64:
 			// ok
 		case float64:
 			// Check if it's actually an integer value
@@ -276,9 +276,9 @@ func validateParamType(val interface{}, expectedType string, allowed []string) e
 			return fmt.Errorf("expected integer, got %T", val)
 		}
 	case "number":
-		// Handle any numeric type (int or float)
+		// Handle any numeric type (int, uint, or float)
 		switch val.(type) {
-		case float32, float64, int, int32, int64:
+		case float32, float64, int, int8, int16, int32, int64, uint, uint8, uint16, uint32, uint64:
 			// ok
 		default:
 			return fmt.Errorf("expected number, got %T", val)

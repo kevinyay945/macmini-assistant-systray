@@ -55,6 +55,16 @@ func (e *AppError) Unwrap() error {
 // This means errors.Is(wrappedErr, ErrToolNotFound) returns true
 // if wrappedErr has the same Code as ErrToolNotFound, regardless of
 // other fields like Message, Cause, or Extra.
+//
+// IMPORTANT: This is intentionally a "category-based" comparison, not identity.
+// Use this when you want to check "is this a tool-not-found error?" rather than
+// "is this the exact same error instance?". For precise error matching,
+// use errors.As and check specific fields.
+//
+// Example:
+//
+//	err := ErrToolNotFound.WithMessage("tool X not found").WithCause(someOtherError)
+//	errors.Is(err, ErrToolNotFound) // true - same category (TOOL_NOT_FOUND)
 func (e *AppError) Is(target error) bool {
 	t, ok := target.(*AppError)
 	if !ok {
