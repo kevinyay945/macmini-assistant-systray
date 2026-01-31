@@ -52,6 +52,9 @@ func (e *AppError) Unwrap() error {
 
 // Is implements errors.Is support.
 // Two AppErrors are considered equal if they have the same Code.
+// This means errors.Is(wrappedErr, ErrToolNotFound) returns true
+// if wrappedErr has the same Code as ErrToolNotFound, regardless of
+// other fields like Message, Cause, or Extra.
 func (e *AppError) Is(target error) bool {
 	t, ok := target.(*AppError)
 	if !ok {

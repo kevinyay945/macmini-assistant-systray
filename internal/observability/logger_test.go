@@ -177,6 +177,30 @@ func TestLogger_SensitiveValueFiltering(t *testing.T) {
 	}
 }
 
+func TestLogger_BearerTokenFiltering(t *testing.T) {
+	var buf bytes.Buffer
+	l := observability.New(
+		observability.WithOutput(&buf),
+		observability.WithJSON(),
+	)
+	ctx := context.Background()
+
+	// Test that Bearer tokens in values are filtered
+	l.Info(ctx, "auth header", "value", "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9")
+	l.Info(ctx, "auth header", "value", "bearer abc123-def456")
+
+	output := buf.String()
+	if strings.Contains(output, "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9") {
+		t.Error("Logger should redact Bearer token values")
+	}
+	if strings.Contains(output, "abc123-def456") {
+		t.Error("Logger should redact bearer token values (lowercase)")
+	}
+	if !strings.Contains(output, "[REDACTED]") {
+		t.Error("Logger should show [REDACTED] for Bearer tokens")
+	}
+}
+
 func TestLogger_NonSensitiveDataNotFiltered(t *testing.T) {
 	var buf bytes.Buffer
 	l := observability.New(

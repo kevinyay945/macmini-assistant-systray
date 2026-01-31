@@ -330,10 +330,10 @@ func (c *Config) Validate() error {
 	return errors.Join(errs...)
 }
 
-// GetToolConfig returns a deep copy of the configuration for a specific tool by name.
+// GetToolConfig returns a copy of the configuration for a specific tool by name.
 // Returns a copy to prevent callers from accidentally modifying the original config
 // or holding a dangling pointer if the config's Tools slice is reallocated.
-// The Config map is deep-copied to ensure full immutability.
+// Note: The Config map is copied one level deep. Nested maps/slices are NOT deep-copied.
 func (c *Config) GetToolConfig(name string) (ToolConfig, bool) {
 	for _, tool := range c.Tools {
 		if tool.Name == name {
@@ -357,7 +357,15 @@ func (c *Config) GetToolConfig(name string) (ToolConfig, bool) {
 
 // GetEnabledTools returns only the enabled tool configurations.
 func (c *Config) GetEnabledTools() []ToolConfig {
-	var enabled []ToolConfig
+	// Count enabled tools first for pre-allocation
+	count := 0
+	for _, tool := range c.Tools {
+		if tool.Enabled {
+			count++
+		}
+	}
+
+	enabled := make([]ToolConfig, 0, count)
 	for _, tool := range c.Tools {
 		if tool.Enabled {
 			enabled = append(enabled, tool)

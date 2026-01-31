@@ -29,8 +29,11 @@ const (
 
 // sensitivePatterns are pre-compiled regex patterns for filtering sensitive data.
 // These are defined at package level to avoid recompilation on every log call.
+// NOTE: This is a basic filter and does not cover all sensitive data patterns.
+// Consider using a dedicated secret scanning library for production use.
 var sensitivePatterns = []*regexp.Regexp{
 	regexp.MustCompile(`(?i)(api[_-]?key|secret|token|password|credential|auth)`),
+	regexp.MustCompile(`(?i)(bearer\s+[a-zA-Z0-9\-_.]+)`), // Bearer tokens
 }
 
 // ParseLevel converts a string level name to a slog.Level.

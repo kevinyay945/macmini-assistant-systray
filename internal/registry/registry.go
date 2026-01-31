@@ -42,11 +42,11 @@ type ToolSchema struct {
 // Parameter describes a tool parameter.
 type Parameter struct {
 	Name        string   `json:"name"`
-	Type        string   `json:"type"` // string, integer, boolean, array
+	Type        string   `json:"type"` // string, integer, number, boolean, array, object
 	Required    bool     `json:"required"`
 	Default     any      `json:"default,omitempty"`
 	Description string   `json:"description"`
-	Allowed     []string `json:"allowed,omitempty"` // for enum types
+	Allowed     []string `json:"allowed,omitempty"` // Only applicable for Type="string" - enum validation
 }
 
 // ToolFactory is a function that creates a tool from configuration.
@@ -175,6 +175,8 @@ func (r *Registry) ListTools() []Tool {
 }
 
 // Execute runs a tool with the given parameters, respecting the timeout.
+// IMPORTANT: Tool implementations MUST check ctx.Done() to properly support cancellation.
+// Tools that block indefinitely without checking context will cause goroutine leaks.
 func (r *Registry) Execute(ctx context.Context, name string, params map[string]interface{}) (map[string]interface{}, error) {
 	tool, ok := r.Get(name)
 	if !ok {
