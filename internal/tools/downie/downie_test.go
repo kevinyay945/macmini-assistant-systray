@@ -30,16 +30,16 @@ func TestTool_Description(t *testing.T) {
 	}
 }
 
-func TestTool_Parameters(t *testing.T) {
+func TestTool_Schema(t *testing.T) {
 	tool := downie.New(downie.Config{})
-	params := tool.Parameters()
+	schema := tool.Schema()
 
-	if len(params) != 3 {
-		t.Errorf("Parameters() returned %d params, want 3", len(params))
+	if len(schema.Inputs) != 3 {
+		t.Errorf("Schema().Inputs returned %d params, want 3", len(schema.Inputs))
 	}
 
 	// Check required URL parameter
-	urlParam := params[0]
+	urlParam := schema.Inputs[0]
 	if urlParam.Name != "url" {
 		t.Errorf("First param name = %q, want 'url'", urlParam.Name)
 	}
@@ -48,12 +48,49 @@ func TestTool_Parameters(t *testing.T) {
 	}
 
 	// Check optional parameters have defaults
-	formatParam := params[1]
+	formatParam := schema.Inputs[1]
 	if formatParam.Required {
 		t.Error("format parameter should not be required")
 	}
 	if formatParam.Default != "mp4" {
 		t.Errorf("format default = %v, want 'mp4'", formatParam.Default)
+	}
+
+	// Check format parameter has Allowed values
+	if len(formatParam.Allowed) == 0 {
+		t.Error("format parameter should have Allowed values")
+	}
+	expectedFormats := []string{"mp4", "mkv", "webm", "m4v"}
+	for _, fmt := range expectedFormats {
+		found := false
+		for _, allowed := range formatParam.Allowed {
+			if allowed == fmt {
+				found = true
+				break
+			}
+		}
+		if !found {
+			t.Errorf("format Allowed should include %q", fmt)
+		}
+	}
+
+	// Check resolution parameter has Allowed values
+	resParam := schema.Inputs[2]
+	if len(resParam.Allowed) == 0 {
+		t.Error("resolution parameter should have Allowed values")
+	}
+	expectedResolutions := []string{"2160p", "1440p", "1080p", "720p", "480p", "360p"}
+	for _, res := range expectedResolutions {
+		found := false
+		for _, allowed := range resParam.Allowed {
+			if allowed == res {
+				found = true
+				break
+			}
+		}
+		if !found {
+			t.Errorf("resolution Allowed should include %q", res)
+		}
 	}
 }
 
@@ -109,12 +146,7 @@ func TestTool_Execute_ValidRequest(t *testing.T) {
 		t.Errorf("Execute() returned error: %v", err)
 	}
 
-	resultMap, ok := result.(map[string]interface{})
-	if !ok {
-		t.Fatal("Execute() result is not a map")
-	}
-
-	if resultMap["status"] != "pending" {
-		t.Errorf("Execute() status = %v, want 'pending'", resultMap["status"])
+	if result["status"] != "pending" {
+		t.Errorf("Execute() status = %v, want 'pending'", result["status"])
 	}
 }

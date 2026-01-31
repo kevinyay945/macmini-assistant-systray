@@ -46,28 +46,46 @@ func (t *Tool) Description() string {
 	return "Download videos using Downie application"
 }
 
-// Parameters returns the tool parameter definitions for LLM integration.
-func (t *Tool) Parameters() []registry.ParameterDef {
-	return []registry.ParameterDef{
-		{
-			Name:        "url",
-			Type:        "string",
-			Required:    true,
-			Description: "The video URL to download",
+// Schema returns the tool schema for LLM integration.
+func (t *Tool) Schema() registry.ToolSchema {
+	return registry.ToolSchema{
+		Inputs: []registry.Parameter{
+			{
+				Name:        "url",
+				Type:        "string",
+				Required:    true,
+				Description: "The video URL to download",
+			},
+			{
+				Name:        "format",
+				Type:        "string",
+				Required:    false,
+				Description: "Output format",
+				Default:     "mp4",
+				Allowed:     []string{"mp4", "mkv", "webm", "m4v"},
+			},
+			{
+				Name:        "resolution",
+				Type:        "string",
+				Required:    false,
+				Description: "Video resolution",
+				Default:     "1080p",
+				Allowed:     []string{"2160p", "1440p", "1080p", "720p", "480p", "360p"},
+			},
 		},
-		{
-			Name:        "format",
-			Type:        "string",
-			Required:    false,
-			Description: "Output format (e.g., mp4, mkv)",
-			Default:     "mp4",
-		},
-		{
-			Name:        "resolution",
-			Type:        "string",
-			Required:    false,
-			Description: "Video resolution (e.g., 1080p, 720p)",
-			Default:     "1080p",
+		Outputs: []registry.Parameter{
+			{
+				Name:        "status",
+				Type:        "string",
+				Required:    true,
+				Description: "Download status",
+			},
+			{
+				Name:        "message",
+				Type:        "string",
+				Required:    true,
+				Description: "Status message",
+			},
 		},
 	}
 }
@@ -77,7 +95,7 @@ func (t *Tool) Parameters() []registry.ParameterDef {
 //   - url: The video URL to download (required)
 //   - format: Output format (optional, default: mp4)
 //   - resolution: Video resolution (optional, default: 1080p)
-func (t *Tool) Execute(ctx context.Context, params map[string]interface{}) (interface{}, error) {
+func (t *Tool) Execute(ctx context.Context, params map[string]interface{}) (map[string]interface{}, error) {
 	// Context check should be first to fail fast
 	select {
 	case <-ctx.Done():

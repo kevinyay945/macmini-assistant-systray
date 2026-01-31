@@ -1,7 +1,7 @@
 # Phase 1: Core Foundation
 
 **Duration**: Weeks 2-3
-**Status**: ⚪ Not Started
+**Status**: 🟢 Completed
 **Goal**: Build the foundational components without external integrations
 
 ---
@@ -15,14 +15,14 @@ This phase establishes the core infrastructure components: configuration system,
 ## 1.1 Configuration System
 
 **Duration**: 2 days
-**Status**: ⚪ Not Started
+**Status**: 🟢 Completed
 
 ### Tasks
 
-- [ ] Define config schema (YAML)
-- [ ] Implement config loader with validation
-- [ ] Add default config generation
-- [ ] Support environment variable overrides (optional)
+- [x] Define config schema (YAML)
+- [x] Implement config loader with validation
+- [x] Add default config generation
+- [x] Support environment variable overrides (optional)
 
 ### Implementation Details
 
@@ -88,29 +88,29 @@ func TestConfig_EnvironmentVariableExpansion(t *testing.T)
 
 ### Acceptance Criteria
 
-- [ ] Config loads from `~/.macmini-assistant/config.yaml`
-- [ ] Validation fails early with clear error messages
-- [ ] `orchestrator init` generates valid default config
-- [ ] All config fields have defaults or required validation
-- [ ] Environment variables are expanded (e.g., `${VAR_NAME}`)
+- [x] Config loads from `~/.macmini-assistant/config.yaml`
+- [x] Validation fails early with clear error messages
+- [x] `orchestrator init` generates valid default config
+- [x] All config fields have defaults or required validation
+- [x] Environment variables are expanded (e.g., `${VAR_NAME}`)
 
 ### Notes
 
-<!-- Add your notes here -->
+Implemented in `internal/config/config.go`. All tests passing.
 
 ---
 
 ## 1.2 Tool Registry
 
 **Duration**: 3 days
-**Status**: ⚪ Not Started
+**Status**: 🟢 Completed
 
 ### Tasks
 
-- [ ] Define tool interface
-- [ ] Implement registry with dynamic loading
-- [ ] Add tool metadata validation
-- [ ] Create tool execution wrapper (timeout, logging)
+- [x] Define tool interface
+- [x] Implement registry with dynamic loading
+- [x] Add tool metadata validation
+- [x] Create tool execution wrapper (timeout, logging)
 
 ### Implementation Details
 
@@ -190,30 +190,36 @@ func TestRegistry_ExecuteNonExistent(t *testing.T)
 
 ### Acceptance Criteria
 
-- [ ] Tools registered via config file
-- [ ] Tool execution respects 10-min timeout
-- [ ] Invalid parameters rejected with clear errors
-- [ ] Tool metadata accessible for Copilot SDK registration
-- [ ] Duplicate tool names are rejected
-- [ ] Registry is thread-safe for concurrent access
+- [x] Tools registered via config file
+- [x] Tool execution respects 10-min timeout
+- [x] Invalid parameters rejected with clear errors
+- [x] Tool metadata accessible for Copilot SDK registration
+- [x] Duplicate tool names are rejected
+- [x] Registry is thread-safe for concurrent access
 
 ### Notes
 
-<!-- Add your notes here -->
+Implemented in `internal/registry/registry.go`. Enhanced with:
+- Parameter type validation (`string`, `integer`, `boolean`, `array`, `object`)
+- Default value application for optional parameters
+- Goroutine-safe execution with timeout handling (fixed potential goroutine leak)
+- Factory pattern for tool creation (`RegisterFactory`, `MustRegisterFactory`)
+- Duplicate detection for both tools (`ErrDuplicateTool`) and factories (`ErrDuplicateFactory`)
+- Thread-safe `Timeout()` getter with read lock
 
 ---
 
 ## 1.3 Logging & Error Handling
 
 **Duration**: 2 days
-**Status**: ⚪ Not Started
+**Status**: 🟢 Completed
 
 ### Tasks
 
-- [ ] Set up structured logging (recommend: `log/slog`)
-- [ ] Define error types and wrapping
-- [ ] Create error reporter interface
-- [ ] Add request ID tracing
+- [x] Set up structured logging (recommend: `log/slog`)
+- [x] Define error types and wrapping
+- [x] Create error reporter interface
+- [x] Add request ID tracing
 
 ### Implementation Details
 
@@ -322,15 +328,20 @@ func TestRequestID_Propagation(t *testing.T)
 
 ### Acceptance Criteria
 
-- [ ] All logs in JSON format with timestamps
-- [ ] Errors include context (stack trace, request ID)
-- [ ] Log levels configurable (debug, info, warn, error)
-- [ ] No sensitive data in logs (API keys, tokens filtered)
-- [ ] Request IDs propagate through entire request lifecycle
+- [x] All logs in JSON format with timestamps
+- [x] Errors include context (stack trace, request ID)
+- [x] Log levels configurable (debug, info, warn, error)
+- [x] No sensitive data in logs (API keys, tokens filtered)
+- [x] Request IDs propagate through entire request lifecycle
 
 ### Notes
 
-<!-- Add your notes here -->
+Implemented in `internal/observability/`. Enhanced with:
+- `AppError` with fluent API: `WithCause()`, `WithMessage()`, `WithRequestID()`, `WithExtra()`
+- `UserMessage()` method for user-friendly error messages
+- `LogReporter` with proper request ID priority (AppError > context)
+- `MultiReporter` with parallel execution using `sync.WaitGroup`
+- Sentinel errors for common cases (`ErrConfigNotFound`, `ErrToolNotFound`, etc.)
 
 ---
 
@@ -338,10 +349,10 @@ func TestRequestID_Propagation(t *testing.T)
 
 By the end of Phase 1:
 
-- [ ] Configuration system fully functional
-- [ ] Tool registry with timeout enforcement
-- [ ] Structured logging throughout codebase
-- [ ] Error types and reporter interface
+- [x] Configuration system fully functional
+- [x] Tool registry with timeout enforcement
+- [x] Structured logging throughout codebase
+- [x] Error types and reporter interface
 
 ---
 
@@ -370,7 +381,104 @@ require (
 
 ## Notes & Discoveries
 
-<!-- Add notes during implementation -->
+### Code Review Improvements (2026-01-31)
+
+**Performance & Memory:**
+1. **Logger Regex Optimization**: Moved sensitive data filtering regex patterns to package-level variables to avoid recompilation on every logger initialization
+2. **Goroutine Leak Fix**: `Registry.Execute()` now uses `<-timeoutCtx.Done()` instead of `default` case to properly handle context cancellation and prevent goroutine leaks
+3. **Immutable Params**: `Execute()` copies params map to avoid mutating caller's data
+
+**Type System & Validation:**
+4. **Number Type Support**: Added `number` type validation for float32/float64 in addition to existing `integer` type
+5. **Allowed Values Validation**: Implemented validation for `Parameter.Allowed` field to support enum-style constraints
+6. **Parameter Type Validation**: Enhanced `validateParamType()` to validate string enum values against allowed list
+
+**Error Handling:**
+7. **AppError.Is Fix**: Simplified `AppError.Is()` implementation to use direct type assertion instead of `errors.As`, providing more predictable behavior
+8. **Request ID Priority**: `LogReporter` now correctly prioritizes AppError's RequestID over context RequestID
+
+**Configuration & Flexibility:**
+9. **MultiReporter Configurable Timeout**: Added `WithTimeout()` method to allow custom timeout configuration (default: 5s)
+10. **Environment Variable Documentation**: Added documentation note that nested variable substitution (e.g., `${VAR1:-${VAR2}}`) is not supported
+
+**Testing:**
+11. **Test Timing Constants**: Replaced magic numbers in timeout tests with named constants (`testShortTimeout`, `testLongOperation`) for reliability across different environments
+12. **Enhanced Test Coverage**: Added tests for number type validation, allowed values validation, and MultiReporter timeout configuration
+
+### Code Review Fixes (2026-01-31 - Round 2)
+
+**Performance:**
+13. **Config Regex Optimization**: Moved `envVarPattern` to package-level variable in `config.go` to avoid regex recompilation on every `expandEnvVars()` call. This mirrors the similar fix already applied to `logger.go` for sensitive data filtering.
+
+**Safety:**
+14. **GetToolConfig Returns Copy**: Changed `Config.GetToolConfig()` to return `(ToolConfig, bool)` instead of `(*ToolConfig, bool)`. Returning a pointer to a slice element is dangerous because if the slice is reallocated (e.g., during config reload), the pointer becomes dangling. Returning a copy is safer and prevents accidental mutation of the original config.
+
+### Code Review Fixes (2026-01-31 - Round 3)
+
+**Type System & Validation:**
+15. **Full Unsigned Integer Support**: Enhanced `validateParamType()` to support all unsigned integer types (`uint`, `uint8`, `uint16`, `uint32`, `uint64`) for both `"integer"` and `"number"` parameter types. Also added `int8` and `int16` support. This ensures parameters from non-JSON sources (like internal Go calls) are validated correctly.
+
+**Configuration Validation:**
+16. **Copilot Timeout Range Validation**: Added validation for `copilot.timeout_seconds` to reject negative values and values exceeding 1 hour (3600 seconds). This prevents misconfigurations that could cause hung requests or unreasonable resource usage.
+
+**Deep Copy Implementation:**
+17. **Recursive Deep Copy for Config**: Implemented `deepCopyMap()` function for recursive deep copying of `map[string]interface{}` including nested maps and slices. `GetToolConfig()` now returns a truly deep copy, preventing modifications to the copy from affecting the original config. Added comprehensive tests for nested map and array mutation protection.
+
+**Documentation:**
+18. **AppError.Is() Behavior Documentation**: Enhanced documentation for `AppError.Is()` method to clearly explain that it performs "category-based" comparison using only the Code field. Added example code showing that `errors.Is(err, ErrToolNotFound)` returns true for any error with the same code, regardless of Message, Cause, or Extra fields. Users who need precise matching should use `errors.As` and check specific fields.
+
+### PR Review Fixes (2026-01-31 - Round 4)
+
+**Testing:**
+19. **Test Comment Clarification**: Fixed confusing comment in `TestConfig_Load_EnvironmentVariableWithDefault`. Removed unused `t.Setenv("UNSET_VAR", "")` line and clarified that `LOG_LEVEL_UNSET` is intentionally not set so default value applies.
+
+**Confirmed Already Fixed:**
+- **MultiReporter Goroutine Safety**: `reportWithTimeout()` already passes `timeoutCtx` to `reportFn`, allowing reporters to detect cancellation via `ctx.Done()`
+- **trackingTestReporter Channel Safety**: Already uses `sync.Once` to prevent double-close panic
+- **Environment Variable LookupEnv**: `expandEnvVars()` already uses `os.LookupEnv()` to distinguish between "not set" and "set to empty string"
+- **Deep Copy for GetToolConfig**: `deepCopyMap()` recursively copies nested maps and slices in `ToolConfig.Config`
+- **AppError Extra Map Copying**: All `With*` methods use `copyExtra()` to prevent shared mutations
+
+### PR Review Fixes (2026-01-31 - Round 5)
+
+**Thread Safety:**
+20. **Registry Execute Race Condition Fix**: Fixed race condition in `Registry.Execute()` where `r.timeout` was accessed without holding the read lock. Now properly acquires `mu.RLock()` before reading the timeout value, then releases the lock before creating the timeout context. This prevents data races when `SetTimeout()` is called concurrently with `Execute()`.
+
+**Performance:**
+21. **expandEnvVars Regex Optimization**: Optimized `expandEnvVars()` to use `FindStringSubmatch()` to extract the capture group directly instead of using `TrimPrefix()`/`TrimSuffix()`. This avoids redundant string manipulation since the regex already captures the variable name.
+
+**Type Safety & Validation:**
+22. **Downie Tool Allowed Values**: Added `Allowed` field to Downie tool's `format` and `resolution` parameters to enable enum validation:
+    - `format`: `["mp4", "mkv", "webm", "m4v"]`
+    - `resolution`: `["2160p", "1440p", "1080p", "720p", "480p", "360p"]`
+    This ensures invalid format/resolution values are rejected early during parameter validation in `Registry.Execute()`.
+
+**CI/CD:**
+23. **SAST Workflow Fail-on-Error**: Modified Gosec scanner configuration to properly fail CI when security issues are found:
+    - Removed `-no-fail` flag from gosec args
+    - Added `continue-on-error: true` to capture results before failing
+    - Added separate "Check Gosec results" step that fails if gosec found issues
+    - SARIF results are still uploaded for GitHub Security tab regardless of failure
+
+### PR Review Fixes (2026-01-31 - Round 6)
+
+**Constants & Code Organization:**
+24. **Package-Level Copilot Timeout Constants**: Moved `maxTimeoutSeconds` from local variable inside `Validate()` to package-level constants. Added `MaxCopilotTimeout` (3600) and `DefaultCopilotTimeout` (600) constants alongside `DefaultServerPort` for consistency and reusability.
+
+**Regex Precision:**
+25. **Sensitive Data Filter Word Boundaries**: Updated `sensitivePatterns` regex in logger.go to use word boundaries (`\b`) to prevent false positives. Split "auth" pattern to `\bauth(orization|entication)?\b` to avoid matching words like "author". This improves precision while maintaining security filtering for actual sensitive data.
+
+**Interface Completeness:**
+26. **sensitiveFieldFilter Enabled() Method**: Added explicit `Enabled(ctx context.Context, level slog.Level) bool` method to `sensitiveFieldFilter` struct for interface completeness, even though the embedded handler already provides this functionality.
+
+**Deep Copy Consistency:**
+27. **copyExtra Deep Copy in errors.go**: Enhanced `copyExtra()` in errors.go to perform recursive deep copying of nested `map[string]interface{}` and `[]interface{}`, matching the `deepCopyMap()` implementation in config.go. This ensures `AppError.WithExtra()` and other methods don't leak shared references.
+
+**Error Handling:**
+28. **runOrchestrator Returns Error**: Changed `runOrchestrator()` signature from `func(ctx context.Context)` to `func(ctx context.Context) error` and updated cobra command from `Run` to `RunE`. This enables proper error propagation for future fatal startup errors.
+
+**CI/CD:**
+29. **Parameterized Go Version in SAST Workflow**: Added `GO_VERSION` environment variable at workflow level in sast.yml. Both `gosec` and `govulncheck` jobs now reference `${{ env.GO_VERSION }}` instead of hardcoded version strings, making Go version updates a single-line change.
 
 ---
 

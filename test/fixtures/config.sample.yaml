@@ -1,25 +1,43 @@
 # Sample Configuration File
 # Copy this to ~/.macmini-assistant/config.yaml and fill in your values
 
-server:
-  port: 8080
-
-line:
-  channel_secret: ""
-  channel_token: ""
-
-discord:
-  token: ""
-  guild_id: ""
+app:
+  download_folder: /tmp/downloads
+  auto_start: true
+  auto_update: true
+  log_level: info  # debug, info, warn, error
 
 copilot:
-  api_key: ""
-  timeout: 600  # 10 minutes (in seconds)
+  api_key: ${GITHUB_COPILOT_API_KEY}
+  timeout_seconds: 600  # 10 minutes
+
+line:
+  channel_secret: ${LINE_CHANNEL_SECRET}
+  channel_token: ${LINE_ACCESS_TOKEN}
+  webhook_port: 8080
+
+discord:
+  bot_token: ${DISCORD_BOT_TOKEN}
+  status_channel_id: ""
+  enable_slash_commands: true
 
 tools:
-  downie:
+  - name: youtube_download
+    type: downie
     enabled: true
-  google_drive:
+    config:
+      deep_link_scheme: "downie://"
+      default_format: mp4
+      default_resolution: 1080p
+
+  - name: gdrive_upload
+    type: google_drive
     enabled: true
-    credentials_path: ""
-    service_account_path: ""
+    config:
+      credentials_path: ~/.macmini-assistant/gdrive-creds.json
+      default_timeout: 300
+
+updater:
+  github_repo: username/macmini-assistant
+  check_interval_hours: 6
+  enabled: true
