@@ -264,9 +264,8 @@ func TestHandler_ProcessEvent_MessageEvent_EmptyContent(t *testing.T) {
 }
 
 func TestHandler_ProcessEvent_MessageEvent_WithRouter(t *testing.T) {
-	mockRouter := &testutil.MockRouter{
-		Response: &handlers.Response{Text: "processed"},
-	}
+	mockRouter := testutil.NewMockRouter()
+	mockRouter.SetResponse(&handlers.Response{Text: "processed"})
 	h := New(Config{Router: mockRouter})
 	_ = h.Start()
 	defer func() { _ = h.Stop() }()
@@ -283,9 +282,8 @@ func TestHandler_ProcessEvent_MessageEvent_WithRouter(t *testing.T) {
 }
 
 func TestHandler_ProcessEvent_MessageEvent_RouterError(t *testing.T) {
-	mockRouter := &testutil.MockRouter{
-		Err: errors.New("routing failed"),
-	}
+	mockRouter := testutil.NewMockRouter()
+	mockRouter.SetError(errors.New("routing failed"))
 	h := New(Config{Router: mockRouter})
 	_ = h.Start()
 	defer func() { _ = h.Stop() }()
@@ -311,9 +309,8 @@ func TestHandler_ProcessEvent_FollowEvent(t *testing.T) {
 }
 
 func TestHandler_HandleMessageEvent_RouteSuccessWithResponse(t *testing.T) {
-	mockRouter := &testutil.MockRouter{
-		Response: &handlers.Response{Text: "response text"},
-	}
+	mockRouter := testutil.NewMockRouter()
+	mockRouter.SetResponse(&handlers.Response{Text: "response text"})
 	h := New(Config{Router: mockRouter})
 	_ = h.Start()
 	defer func() { _ = h.Stop() }()
@@ -330,9 +327,8 @@ func TestHandler_HandleMessageEvent_RouteSuccessWithResponse(t *testing.T) {
 }
 
 func TestHandler_HandleMessageEvent_RouteSuccessEmptyResponse(t *testing.T) {
-	mockRouter := &testutil.MockRouter{
-		Response: &handlers.Response{Text: ""},
-	}
+	mockRouter := testutil.NewMockRouter()
+	mockRouter.SetResponse(&handlers.Response{Text: ""})
 	h := New(Config{Router: mockRouter})
 	_ = h.Start()
 	defer func() { _ = h.Stop() }()
@@ -349,9 +345,8 @@ func TestHandler_HandleMessageEvent_RouteSuccessEmptyResponse(t *testing.T) {
 }
 
 func TestHandler_HandleMessageEvent_RouteSuccessNilResponse(t *testing.T) {
-	mockRouter := &testutil.MockRouter{
-		Response: nil,
-	}
+	mockRouter := testutil.NewMockRouter()
+	mockRouter.SetResponse(nil)
 	h := New(Config{Router: mockRouter})
 	_ = h.Start()
 	defer func() { _ = h.Stop() }()
@@ -448,5 +443,64 @@ func TestHandler_HandleWebhookGin_ValidSignature(t *testing.T) {
 func TestShutdownTimeout_Constant(t *testing.T) {
 	if shutdownTimeout != 30*time.Second {
 		t.Errorf("shutdownTimeout = %v, want %v", shutdownTimeout, 30*time.Second)
+	}
+}
+
+func TestHealthCheck_NotStarted(t *testing.T) {
+	h := New(Config{})
+	status := h.HealthCheck(context.Background())
+	if status.Healthy {
+		t.Error("HealthCheck should return unhealthy when not started")
+	}
+	if status.Message != "handler not started" {
+		t.Errorf("HealthCheck message = %q, want %q", status.Message, "handler not started")
+	}
+}
+
+func TestHealthCheck_StartedNoBot(t *testing.T) {
+	h := New(Config{})
+	h.started = true
+	// bot is nil
+	status := h.HealthCheck(context.Background())
+	if status.Healthy {
+		t.Error("HealthCheck should return unhealthy when bot is nil")
+	}
+	if status.Message != "bot client not initialized" {
+		t.Errorf("HealthCheck message = %q, want %q", status.Message, "bot client not initialized")
+	}
+}
+
+func TestHealthCheck_Healthy(t *testing.T) {
+	h := New(Config{
+		ChannelSecret: "secret",
+		ChannelToken:  "token",
+	})
+	_ = h.Start()
+	defer func() { _ = h.Stop() }()
+
+	status := h.HealthCheck(context.Background())
+	if !status.Healthy {
+		t.Errorf("HealthCheck should return healthy when started with bot, got message: %s", status.Message)
+	}
+	if status.Message != "healthy" {
+		t.Errorf("HealthCheck message = %q, want %q", status.Message, "healthy")
+	}
+	if status.Details["connected"] != true {
+		t.Error("HealthCheck details should include connected=true")
+	}
+}
+
+func TestErrChannelSecretRequired(t *testing.T) {
+	if ErrChannelSecretRequired == nil {
+		t.Error("ErrChannelSecretRequired should not be nil")
+	}
+	if ErrChannelSecretRequired.Error() != "line: channel secret is required" {
+		t.Errorf("ErrChannelSecretRequired = %q, want %q", ErrChannelSecretRequired.Error(), "line: channel secret is required")
+	}
+}
+
+func TestRetryBaseDelay_Constant(t *testing.T) {
+	if retryBaseDelay != 2*time.Second {
+		t.Errorf("retryBaseDelay = %v, want %v", retryBaseDelay, 2*time.Second)
 	}
 }

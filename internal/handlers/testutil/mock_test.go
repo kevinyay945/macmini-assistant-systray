@@ -11,7 +11,8 @@ import (
 
 func TestMockRouter_Route_Basic(t *testing.T) {
 	expectedResp := &handlers.Response{Text: "test response"}
-	m := &MockRouter{Response: expectedResp}
+	m := NewMockRouter()
+	m.SetResponse(expectedResp)
 
 	msg := &handlers.Message{Content: "test", Platform: handlers.PlatformDiscord}
 	resp, err := m.Route(context.Background(), msg)
@@ -31,7 +32,7 @@ func TestMockRouter_Route_Basic(t *testing.T) {
 }
 
 func TestMockRouter_Route_NoResponse(t *testing.T) {
-	m := &MockRouter{}
+	m := NewMockRouter()
 	resp, err := m.Route(context.Background(), &handlers.Message{Content: "test"})
 
 	if err != nil {
@@ -44,7 +45,8 @@ func TestMockRouter_Route_NoResponse(t *testing.T) {
 
 func TestMockRouter_Route_WithError(t *testing.T) {
 	expectedErr := errors.New("mock error")
-	m := &MockRouter{Err: expectedErr}
+	m := NewMockRouter()
+	m.SetError(expectedErr)
 
 	_, err := m.Route(context.Background(), &handlers.Message{})
 
@@ -54,7 +56,7 @@ func TestMockRouter_Route_WithError(t *testing.T) {
 }
 
 func TestMockRouter_Route_CapturesMessage(t *testing.T) {
-	m := &MockRouter{}
+	m := NewMockRouter()
 	msg := &handlers.Message{
 		Content:  "test content",
 		Platform: handlers.PlatformLINE,
@@ -76,9 +78,8 @@ func TestMockRouter_Route_CapturesMessage(t *testing.T) {
 }
 
 func TestMockRouter_Reset(t *testing.T) {
-	m := &MockRouter{
-		Response: &handlers.Response{Text: "test"},
-	}
+	m := NewMockRouter()
+	m.SetResponse(&handlers.Response{Text: "test"})
 	_, _ = m.Route(context.Background(), &handlers.Message{Content: "test"})
 
 	if !m.Called() {
@@ -101,24 +102,24 @@ func TestMockRouter_Reset(t *testing.T) {
 func TestMockRouter_Reset_PreservesConfig(t *testing.T) {
 	expectedResp := &handlers.Response{Text: "preserved"}
 	expectedErr := errors.New("preserved error")
-	m := &MockRouter{
-		Response: expectedResp,
-		Err:      expectedErr,
-	}
+	m := NewMockRouter()
+	m.SetResponse(expectedResp)
+	m.SetError(expectedErr)
 
 	_, _ = m.Route(context.Background(), &handlers.Message{})
 	m.Reset()
 
-	if m.Response != expectedResp {
+	if m.Response() != expectedResp {
 		t.Error("Reset() should preserve Response")
 	}
-	if !errors.Is(m.Err, expectedErr) {
+	if !errors.Is(m.Err(), expectedErr) {
 		t.Error("Reset() should preserve Err")
 	}
 }
 
 func TestMockRouter_ConcurrentAccess(t *testing.T) {
-	m := &MockRouter{Response: &handlers.Response{Text: "ok"}}
+	m := NewMockRouter()
+	m.SetResponse(&handlers.Response{Text: "ok"})
 	var wg sync.WaitGroup
 
 	// Spawn multiple goroutines to access the mock concurrently
@@ -148,7 +149,8 @@ func TestMockRouter_ConcurrentAccess(t *testing.T) {
 }
 
 func TestMockRouter_ConcurrentReset(t *testing.T) {
-	m := &MockRouter{Response: &handlers.Response{Text: "ok"}}
+	m := NewMockRouter()
+	m.SetResponse(&handlers.Response{Text: "ok"})
 	var wg sync.WaitGroup
 
 	// Test concurrent Route and Reset operations

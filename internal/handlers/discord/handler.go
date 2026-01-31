@@ -20,6 +20,13 @@ import (
 var (
 	_ handlers.Handler        = (*Handler)(nil)
 	_ handlers.StatusReporter = (*Handler)(nil)
+	_ handlers.HealthChecker  = (*Handler)(nil)
+)
+
+// Sentinel errors for Discord handler operations.
+var (
+	// ErrTokenRequired is returned when the Discord bot token is empty.
+	ErrTokenRequired = errors.New("discord: bot token is required")
 )
 
 // Embed colors for status messages.
@@ -103,7 +110,7 @@ func (h *Handler) Start() error {
 	}
 
 	if h.token == "" {
-		return errors.New("discord bot token is required")
+		return ErrTokenRequired
 	}
 
 	// Create Discord session
@@ -586,7 +593,7 @@ func (h *Handler) cleanMentions(s *discordgo.Session, content string) string {
 }
 
 // SendMessage sends a message to a specific channel.
-// TODO: Implement rate limiting to respect Discord API limits
+// TODO(#3): Implement rate limiting to respect Discord API limits
 // See https://discord.com/developers/docs/topics/rate-limits
 func (h *Handler) SendMessage(_ context.Context, channelID string, message string) error {
 	h.mu.RLock()
@@ -606,7 +613,7 @@ func (h *Handler) SendMessage(_ context.Context, channelID string, message strin
 }
 
 // SendEmbed sends an embed message to a specific channel.
-// TODO: Implement rate limiting to respect Discord API limits
+// TODO(#3): Implement rate limiting to respect Discord API limits
 // See https://discord.com/developers/docs/topics/rate-limits
 func (h *Handler) SendEmbed(_ context.Context, channelID string, embed *discordgo.MessageEmbed) error {
 	h.mu.RLock()
@@ -623,4 +630,32 @@ func (h *Handler) SendEmbed(_ context.Context, channelID string, embed *discordg
 	}
 
 	return nil
+}
+
+// HealthCheck returns the current health status of the Discord handler.
+// Implements handlers.HealthChecker interface.
+func (h *Handler) HealthCheck(ctx context.Context) handlers.HealthStatus {
+	h.mu.RLock()
+	defer h.mu.RUnlock()
+
+	status := handlers.NewHealthStatus(h.started && h.session != nil, "")
+
+	if !h.started {
+		status.Message = "handler not started"
+		return status
+	}
+
+	if h.session == nil {
+		status.Message = "session not initialized"
+		return status
+	}
+
+	status.Message = "healthy"
+	status.Details["connected"] = true
+	status.Details["guild_id"] = h.guildID
+	status.Details["status_channel_id"] = h.statusChannelID
+	status.Details["slash_commands_enabled"] = h.enableSlashCmds
+	status.Details["registered_commands_count"] = len(h.registeredCommands)
+
+	return status
 }

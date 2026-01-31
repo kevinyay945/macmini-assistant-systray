@@ -337,3 +337,61 @@ func TestFormatUserFriendlyError(t *testing.T) {
 		})
 	}
 }
+
+func TestNewHealthStatus(t *testing.T) {
+	status := handlers.NewHealthStatus(true, "all systems operational")
+
+	if !status.Healthy {
+		t.Error("Healthy should be true")
+	}
+	if status.Message != "all systems operational" {
+		t.Errorf("Message = %q, want %q", status.Message, "all systems operational")
+	}
+	if status.Details == nil {
+		t.Error("Details should be initialized")
+	}
+}
+
+func TestNewHealthStatus_Unhealthy(t *testing.T) {
+	status := handlers.NewHealthStatus(false, "service unavailable")
+
+	if status.Healthy {
+		t.Error("Healthy should be false")
+	}
+	if status.Message != "service unavailable" {
+		t.Errorf("Message = %q, want %q", status.Message, "service unavailable")
+	}
+}
+
+func TestHealthStatus_DetailsUsage(t *testing.T) {
+	status := handlers.NewHealthStatus(true, "healthy")
+	status.Details["uptime"] = "24h"
+	status.Details["connections"] = 5
+
+	if status.Details["uptime"] != "24h" {
+		t.Errorf("Details[uptime] = %v, want %v", status.Details["uptime"], "24h")
+	}
+	if status.Details["connections"] != 5 {
+		t.Errorf("Details[connections] = %v, want %v", status.Details["connections"], 5)
+	}
+}
+
+// mockHealthChecker implements handlers.HealthChecker for interface verification.
+type mockHealthChecker struct {
+	status handlers.HealthStatus
+}
+
+func (m *mockHealthChecker) HealthCheck(_ context.Context) handlers.HealthStatus {
+	return m.status
+}
+
+func TestHealthChecker_InterfaceContract(t *testing.T) {
+	var hc handlers.HealthChecker = &mockHealthChecker{
+		status: handlers.NewHealthStatus(true, "ok"),
+	}
+
+	status := hc.HealthCheck(context.Background())
+	if !status.Healthy {
+		t.Error("HealthCheck should return healthy status")
+	}
+}

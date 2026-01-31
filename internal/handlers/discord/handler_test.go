@@ -29,7 +29,7 @@ func TestHandler_New_EmptyConfig(t *testing.T) {
 }
 
 func TestHandler_New_WithAllConfig(t *testing.T) {
-	router := &testutil.MockRouter{}
+	router := testutil.NewMockRouter()
 	h := discord.New(discord.Config{
 		Token:               "test-token",
 		GuildID:             "123456789",
@@ -47,6 +47,9 @@ func TestHandler_Start_NoToken(t *testing.T) {
 	err := h.Start()
 	if err == nil {
 		t.Error("Start() should return error when no token is provided")
+	}
+	if !errors.Is(err, discord.ErrTokenRequired) {
+		t.Errorf("Start() error = %v, want ErrTokenRequired", err)
 	}
 }
 

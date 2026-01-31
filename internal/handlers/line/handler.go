@@ -17,11 +17,19 @@ import (
 	"github.com/kevinyay945/macmini-assistant-systray/internal/observability"
 )
 
-// Compile-time interface check
-var _ handlers.Handler = (*Handler)(nil)
+// Compile-time interface checks
+var (
+	_ handlers.Handler       = (*Handler)(nil)
+	_ handlers.HealthChecker = (*Handler)(nil)
+)
 
-// ErrEmptyMessage is returned when a message event contains no content.
-var ErrEmptyMessage = errors.New("empty message content")
+// Sentinel errors for LINE handler operations.
+var (
+	// ErrEmptyMessage is returned when a message event contains no content.
+	ErrEmptyMessage = errors.New("line: empty message content")
+	// ErrChannelSecretRequired is returned when channel secret is empty during webhook parsing.
+	ErrChannelSecretRequired = errors.New("line: channel secret is required")
+)
 
 // MaxMessageLength is the maximum length for reply messages (LINE limit is 5000 characters).
 const MaxMessageLength = 5000
@@ -36,9 +44,11 @@ const DefaultReplyTimeout = 30 * time.Second
 const EventProcessingTimeout = 10 * time.Minute
 
 // Retry configuration for API client initialization.
+// Uses linear backoff: delay = retryBaseDelay * (attempt + 1)
+// Attempt 1: 2s, Attempt 2: 4s, Attempt 3: 6s
 const (
-	maxRetries      = 3
-	retryDelay      = 2 * time.Second
+	maxRetries      = 3                // Maximum number of retry attempts
+	retryBaseDelay  = 2 * time.Second  // Base delay for retry backoff
 	shutdownTimeout = 30 * time.Second // Timeout for graceful shutdown
 )
 
@@ -54,6 +64,7 @@ type Handler struct {
 	started    bool
 	shutdownCh chan struct{}
 	wg         sync.WaitGroup
+	stopOnce   sync.Once // Ensures Stop() is only executed once
 }
 
 // Config holds LINE handler configuration.
@@ -106,12 +117,14 @@ func (h *Handler) Start() error {
 				"error", lastErr,
 			)
 			if i < maxRetries-1 {
-				time.Sleep(retryDelay * time.Duration(i+1))
+				// Linear backoff: delay = retryBaseDelay * (attempt + 1)
+				backoffDelay := retryBaseDelay * time.Duration(i+1)
+				time.Sleep(backoffDelay)
 			}
 		}
 
 		if lastErr != nil {
-			return fmt.Errorf("failed to create LINE messaging API client after %d attempts: %w", maxRetries, lastErr)
+			return fmt.Errorf("line: failed to create messaging API client after %d attempts: %w", maxRetries, lastErr)
 		}
 		h.bot = bot
 	}
@@ -124,40 +137,46 @@ func (h *Handler) Start() error {
 
 // Stop gracefully shuts down the LINE handler.
 // It waits for all in-flight webhook processing to complete.
+// This method is idempotent and safe to call multiple times.
 func (h *Handler) Stop() error {
-	h.mu.Lock()
-	if !h.started {
+	var stopErr error
+
+	h.stopOnce.Do(func() {
+		h.mu.Lock()
+		if !h.started {
+			h.mu.Unlock()
+			return
+		}
+
+		// Signal shutdown to prevent new goroutines
+		close(h.shutdownCh)
 		h.mu.Unlock()
-		return nil
-	}
 
-	// Signal shutdown to prevent new goroutines
-	close(h.shutdownCh)
-	h.mu.Unlock()
+		// Wait for all in-flight webhook processing to complete with timeout
+		done := make(chan struct{})
+		go func() {
+			h.wg.Wait()
+			close(done)
+		}()
 
-	// Wait for all in-flight webhook processing to complete with timeout
-	done := make(chan struct{})
-	go func() {
-		h.wg.Wait()
-		close(done)
-	}()
+		select {
+		case <-done:
+			// All webhooks completed gracefully
+		case <-time.After(shutdownTimeout):
+			h.logger.Warn(context.Background(), "shutdown timeout exceeded, some requests may be dropped",
+				"timeout", shutdownTimeout,
+			)
+		}
 
-	select {
-	case <-done:
-		// All webhooks completed gracefully
-	case <-time.After(shutdownTimeout):
-		h.logger.Warn(context.Background(), "shutdown timeout exceeded, some requests may be dropped",
-			"timeout", shutdownTimeout,
-		)
-	}
+		h.mu.Lock()
+		h.started = false
+		h.bot = nil
+		h.mu.Unlock()
 
-	h.mu.Lock()
-	defer h.mu.Unlock()
+		h.logger.Info(context.Background(), "LINE handler stopped")
+	})
 
-	h.started = false
-	h.bot = nil
-	h.logger.Info(context.Background(), "LINE handler stopped")
-	return nil
+	return stopErr
 }
 
 // HandleWebhook processes incoming LINE webhook requests.
@@ -231,15 +250,19 @@ func (h *Handler) HandleWebhook(w http.ResponseWriter, r *http.Request) {
 // HandleWebhookGin processes incoming LINE webhook requests using Gin framework.
 // This provides Gin-native integration for the webhook endpoint.
 func (h *Handler) HandleWebhookGin(c *gin.Context) {
+	// Use independent context for logging to avoid premature cancellation
+	// when the request context is cancelled after response is sent
+	logCtx := context.Background()
+
 	// Parse and validate the webhook request
 	cb, err := webhook.ParseRequest(h.channelSecret, c.Request)
 	if err != nil {
 		if errors.Is(err, webhook.ErrInvalidSignature) {
-			h.logger.Warn(c.Request.Context(), "invalid LINE signature received")
+			h.logger.Warn(logCtx, "invalid LINE signature received")
 			c.AbortWithStatus(http.StatusBadRequest)
 			return
 		}
-		h.logger.Error(c.Request.Context(), "failed to parse LINE webhook request", "error", err)
+		h.logger.Error(logCtx, "failed to parse LINE webhook request", "error", err)
 		c.AbortWithStatus(http.StatusBadRequest)
 		return
 	}
@@ -255,7 +278,7 @@ func (h *Handler) HandleWebhookGin(c *gin.Context) {
 
 	select {
 	case <-shutdownCh:
-		h.logger.Warn(c.Request.Context(), "rejecting webhook during shutdown")
+		h.logger.Warn(logCtx, "rejecting webhook during shutdown")
 		return
 	default:
 	}
@@ -430,7 +453,7 @@ func truncateMessage(message string, maxLen int) string {
 }
 
 // sendReply sends a reply message using the reply token.
-// TODO: Implement rate limiting to respect LINE API limits
+// TODO(#3): Implement rate limiting to respect LINE API limits
 // See https://developers.line.biz/en/docs/messaging-api/rate-limits/
 func (h *Handler) sendReply(ctx context.Context, replyToken string, message string) error {
 	h.mu.RLock()
@@ -462,7 +485,7 @@ func (h *Handler) sendReply(ctx context.Context, replyToken string, message stri
 
 // PushMessage sends a message to a specific user (not using reply token).
 // This is useful for notifications or delayed responses.
-// TODO: Implement rate limiting to respect LINE API limits
+// TODO(#3): Implement rate limiting to respect LINE API limits
 // See https://developers.line.biz/en/docs/messaging-api/rate-limits/
 func (h *Handler) PushMessage(ctx context.Context, userID string, message string) error {
 	h.mu.RLock()
@@ -522,4 +545,30 @@ func (h *Handler) ParseMessage(e webhook.MessageEvent) (*handlers.Message, error
 	msg.Metadata["reply_token"] = e.ReplyToken
 
 	return msg, nil
+}
+
+// HealthCheck returns the current health status of the LINE handler.
+// Implements handlers.HealthChecker interface.
+func (h *Handler) HealthCheck(_ context.Context) handlers.HealthStatus {
+	h.mu.RLock()
+	defer h.mu.RUnlock()
+
+	status := handlers.NewHealthStatus(h.started && h.bot != nil, "")
+
+	if !h.started {
+		status.Message = "handler not started"
+		return status
+	}
+
+	if h.bot == nil {
+		status.Message = "bot client not initialized"
+		return status
+	}
+
+	status.Message = "healthy"
+	status.Details["connected"] = true
+	status.Details["channel_secret_configured"] = h.channelSecret != ""
+	status.Details["channel_token_configured"] = h.channelToken != ""
+
+	return status
 }

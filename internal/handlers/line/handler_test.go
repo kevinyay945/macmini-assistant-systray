@@ -31,7 +31,7 @@ func TestHandler_New_EmptyConfig(t *testing.T) {
 }
 
 func TestHandler_New_WithRouter(t *testing.T) {
-	router := &testutil.MockRouter{}
+	router := testutil.NewMockRouter()
 	h := line.New(line.Config{
 		ChannelSecret: "secret",
 		ChannelToken:  "token",
@@ -198,8 +198,8 @@ func TestHandler_ParseMessage_Errors(t *testing.T) {
 		t.Error("ErrEmptyMessage should be defined")
 	}
 
-	if line.ErrEmptyMessage.Error() != "empty message content" {
-		t.Errorf("ErrEmptyMessage = %q, want %q", line.ErrEmptyMessage.Error(), "empty message content")
+	if line.ErrEmptyMessage.Error() != "line: empty message content" {
+		t.Errorf("ErrEmptyMessage = %q, want %q", line.ErrEmptyMessage.Error(), "line: empty message content")
 	}
 
 	// Verify MaxMessageLength constant

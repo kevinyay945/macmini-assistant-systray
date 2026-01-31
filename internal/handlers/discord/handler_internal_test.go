@@ -329,3 +329,40 @@ func TestCleanMentions(t *testing.T) {
 		}
 	}
 }
+
+func TestHealthCheck_NotStarted(t *testing.T) {
+	h := New(Config{})
+	status := h.HealthCheck(context.Background())
+	if status.Healthy {
+		t.Error("HealthCheck should return unhealthy when not started")
+	}
+	if status.Message != "handler not started" {
+		t.Errorf("HealthCheck message = %q, want %q", status.Message, "handler not started")
+	}
+}
+
+func TestHealthCheck_Started(t *testing.T) {
+	h := New(Config{
+		GuildID:             "guild123",
+		StatusChannelID:     "channel456",
+		EnableSlashCommands: true,
+	})
+	h.started = true
+	// Note: session is still nil, so won't be fully healthy
+	status := h.HealthCheck(context.Background())
+	if status.Healthy {
+		t.Error("HealthCheck should return unhealthy when session is nil")
+	}
+	if status.Message != "session not initialized" {
+		t.Errorf("HealthCheck message = %q, want %q", status.Message, "session not initialized")
+	}
+}
+
+func TestErrTokenRequired(t *testing.T) {
+	if ErrTokenRequired == nil {
+		t.Error("ErrTokenRequired should not be nil")
+	}
+	if ErrTokenRequired.Error() != "discord: bot token is required" {
+		t.Errorf("ErrTokenRequired = %q, want %q", ErrTokenRequired.Error(), "discord: bot token is required")
+	}
+}
