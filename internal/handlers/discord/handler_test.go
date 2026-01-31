@@ -8,6 +8,7 @@ import (
 
 	"github.com/kevinyay945/macmini-assistant-systray/internal/handlers"
 	"github.com/kevinyay945/macmini-assistant-systray/internal/handlers/discord"
+	"github.com/kevinyay945/macmini-assistant-systray/internal/handlers/testutil"
 )
 
 func TestHandler_New(t *testing.T) {
@@ -28,7 +29,7 @@ func TestHandler_New_EmptyConfig(t *testing.T) {
 }
 
 func TestHandler_New_WithAllConfig(t *testing.T) {
-	router := &mockRouter{}
+	router := &testutil.MockRouter{}
 	h := discord.New(discord.Config{
 		Token:               "test-token",
 		GuildID:             "123456789",
@@ -153,20 +154,6 @@ func TestStatusMessage_WithResult(t *testing.T) {
 	}
 }
 
-// mockRouter implements handlers.MessageRouter for testing.
-type mockRouter struct {
-	response *handlers.Response
-	err      error
-	called   bool
-	lastMsg  *handlers.Message
-}
-
-func (m *mockRouter) Route(ctx context.Context, msg *handlers.Message) (*handlers.Response, error) {
-	m.called = true
-	m.lastMsg = msg
-	return m.response, m.err
-}
-
 func TestHandler_EmbedColors(t *testing.T) {
 	// Test that color constants are defined correctly
 	if discord.ColorBlue != 0x3498db {
@@ -183,42 +170,12 @@ func TestHandler_EmbedColors(t *testing.T) {
 	}
 }
 
-func TestHandler_ErrorFormatting(t *testing.T) {
-	// Error formatting is tested in handlers/interface_test.go
-	// This test verifies the canonical FormatUserFriendlyError is used consistently
-	tests := []struct {
-		name    string
-		err     error
-		wantMsg string
-	}{
-		{
-			name:    "nil error",
-			err:     nil,
-			wantMsg: "",
-		},
-		{
-			name:    "context deadline exceeded",
-			err:     context.DeadlineExceeded,
-			wantMsg: "⏱️ Request timed out. Please try again.",
-		},
-		{
-			name:    "context canceled",
-			err:     context.Canceled,
-			wantMsg: "🚫 Request was cancelled.",
-		},
-		{
-			name:    "generic error",
-			err:     errors.New("something went wrong"),
-			wantMsg: "❌ An error occurred while processing your request. Please try again later.",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got := handlers.FormatUserFriendlyError(tt.err)
-			if got != tt.wantMsg {
-				t.Errorf("FormatUserFriendlyError() = %q, want %q", got, tt.wantMsg)
-			}
-		})
+func TestHandler_UsesCanonicalErrorFormatter(t *testing.T) {
+	// Full error formatting is tested in handlers/interface_test.go
+	// This test just verifies the function exists and is accessible
+	err := errors.New("test error")
+	result := handlers.FormatUserFriendlyError(err)
+	if result == "" {
+		t.Error("FormatUserFriendlyError should return non-empty string for non-nil error")
 	}
 }

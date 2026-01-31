@@ -23,11 +23,17 @@ var _ handlers.Handler = (*Handler)(nil)
 // ErrEmptyMessage is returned when a message event contains no content.
 var ErrEmptyMessage = errors.New("empty message content")
 
-// MaxMessageLength is the maximum length for reply messages (LINE limit is 5000).
+// MaxMessageLength is the maximum length for reply messages (LINE limit is 5000 characters).
 const MaxMessageLength = 5000
+
+// TruncationSuffix is appended to truncated messages.
+const TruncationSuffix = "..."
 
 // DefaultReplyTimeout is the default timeout for reply message operations.
 const DefaultReplyTimeout = 30 * time.Second
+
+// EventProcessingTimeout is the timeout for processing webhook events asynchronously.
+const EventProcessingTimeout = 10 * time.Minute
 
 // Handler processes LINE bot webhook events.
 type Handler struct {
@@ -108,8 +114,6 @@ func (h *Handler) Stop() error {
 // HandleWebhook processes incoming LINE webhook requests.
 // This is designed to be used with net/http or any HTTP framework.
 func (h *Handler) HandleWebhook(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
-
 	// Always close the request body to prevent connection leaks
 	if r.Body != nil {
 		defer r.Body.Close()
@@ -125,50 +129,61 @@ func (h *Handler) HandleWebhook(w http.ResponseWriter, r *http.Request) {
 	cb, err := webhook.ParseRequest(h.channelSecret, r)
 	if err != nil {
 		if errors.Is(err, webhook.ErrInvalidSignature) {
-			h.logger.Warn(ctx, "invalid LINE signature received")
+			h.logger.Warn(r.Context(), "invalid LINE signature received")
 			http.Error(w, "Invalid signature", http.StatusBadRequest)
 			return
 		}
-		h.logger.Error(ctx, "failed to parse LINE webhook request", "error", err)
+		h.logger.Error(r.Context(), "failed to parse LINE webhook request", "error", err)
 		http.Error(w, "Bad request", http.StatusBadRequest)
 		return
 	}
 
 	// Return 200 OK immediately to LINE (best practice)
-	// Process events asynchronously if needed
+	// LINE has a 1-second timeout, so we must respond quickly
 	w.WriteHeader(http.StatusOK)
 
-	// Process each event
-	for _, event := range cb.Events {
-		h.processEvent(ctx, event)
-	}
+	// Process events asynchronously to avoid blocking the response
+	// Create a new context since request context will be cancelled after response
+	go func() {
+		ctx, cancel := context.WithTimeout(context.Background(), EventProcessingTimeout)
+		defer cancel()
+
+		for _, event := range cb.Events {
+			h.processEvent(ctx, event)
+		}
+	}()
 }
 
 // HandleWebhookGin processes incoming LINE webhook requests using Gin framework.
 // This provides Gin-native integration for the webhook endpoint.
 func (h *Handler) HandleWebhookGin(c *gin.Context) {
-	ctx := c.Request.Context()
-
 	// Parse and validate the webhook request
 	cb, err := webhook.ParseRequest(h.channelSecret, c.Request)
 	if err != nil {
 		if errors.Is(err, webhook.ErrInvalidSignature) {
-			h.logger.Warn(ctx, "invalid LINE signature received")
+			h.logger.Warn(c.Request.Context(), "invalid LINE signature received")
 			c.AbortWithStatus(http.StatusBadRequest)
 			return
 		}
-		h.logger.Error(ctx, "failed to parse LINE webhook request", "error", err)
+		h.logger.Error(c.Request.Context(), "failed to parse LINE webhook request", "error", err)
 		c.AbortWithStatus(http.StatusBadRequest)
 		return
 	}
 
 	// Return 200 OK immediately to LINE
+	// LINE has a 1-second timeout, so we must respond quickly
 	c.Status(http.StatusOK)
 
-	// Process each event
-	for _, event := range cb.Events {
-		h.processEvent(ctx, event)
-	}
+	// Process events asynchronously to avoid blocking the response
+	// Create a new context since request context will be cancelled after response
+	go func() {
+		ctx, cancel := context.WithTimeout(context.Background(), EventProcessingTimeout)
+		defer cancel()
+
+		for _, event := range cb.Events {
+			h.processEvent(ctx, event)
+		}
+	}()
 }
 
 // processEvent handles a single webhook event.
@@ -231,11 +246,21 @@ func (h *Handler) handleMessageEvent(ctx context.Context, e webhook.MessageEvent
 		resp, err := h.router.Route(ctx, msg)
 		if err != nil {
 			h.logger.Error(ctx, "failed to route message", "error", err)
-			_ = h.sendReply(ctx, e.ReplyToken, handlers.FormatUserFriendlyError(err))
+			if replyErr := h.sendReply(ctx, e.ReplyToken, handlers.FormatUserFriendlyError(err)); replyErr != nil {
+				h.logger.Error(ctx, "failed to send error reply",
+					"message_id", messageID,
+					"error", replyErr,
+				)
+			}
 			return
 		}
 		if resp != nil && resp.Text != "" {
-			_ = h.sendReply(ctx, e.ReplyToken, resp.Text)
+			if replyErr := h.sendReply(ctx, e.ReplyToken, resp.Text); replyErr != nil {
+				h.logger.Error(ctx, "failed to send reply after successful routing",
+					"message_id", messageID,
+					"error", replyErr,
+				)
+			}
 		}
 	}
 }
@@ -293,7 +318,24 @@ func (h *Handler) getUserIDFromSource(source webhook.SourceInterface) string {
 	return userID
 }
 
+// truncateMessage safely truncates a message to the maximum allowed length.
+// It operates on runes to avoid cutting multi-byte Unicode characters.
+func truncateMessage(message string, maxLen int) string {
+	runes := []rune(message)
+	if len(runes) <= maxLen {
+		return message
+	}
+	// Reserve space for truncation suffix
+	truncateAt := maxLen - len([]rune(TruncationSuffix))
+	if truncateAt < 0 {
+		truncateAt = 0
+	}
+	return string(runes[:truncateAt]) + TruncationSuffix
+}
+
 // sendReply sends a reply message using the reply token.
+// TODO: Implement rate limiting to respect LINE API limits
+// See https://developers.line.biz/en/docs/messaging-api/rate-limits/
 func (h *Handler) sendReply(ctx context.Context, replyToken string, message string) error {
 	h.mu.RLock()
 	bot := h.bot
@@ -303,10 +345,8 @@ func (h *Handler) sendReply(ctx context.Context, replyToken string, message stri
 		return errors.New("LINE bot client not initialized")
 	}
 
-	// Truncate message if it exceeds the limit
-	if len(message) > MaxMessageLength {
-		message = message[:MaxMessageLength-3] + "..."
-	}
+	// Truncate message if it exceeds the limit (using rune-safe truncation)
+	message = truncateMessage(message, MaxMessageLength)
 
 	_, err := bot.ReplyMessage(&messaging_api.ReplyMessageRequest{
 		ReplyToken: replyToken,
@@ -326,6 +366,8 @@ func (h *Handler) sendReply(ctx context.Context, replyToken string, message stri
 
 // PushMessage sends a message to a specific user (not using reply token).
 // This is useful for notifications or delayed responses.
+// TODO: Implement rate limiting to respect LINE API limits
+// See https://developers.line.biz/en/docs/messaging-api/rate-limits/
 func (h *Handler) PushMessage(ctx context.Context, userID string, message string) error {
 	h.mu.RLock()
 	bot := h.bot
@@ -335,10 +377,8 @@ func (h *Handler) PushMessage(ctx context.Context, userID string, message string
 		return errors.New("LINE bot client not initialized")
 	}
 
-	// Truncate message if it exceeds the limit
-	if len(message) > MaxMessageLength {
-		message = message[:MaxMessageLength-3] + "..."
-	}
+	// Truncate message if it exceeds the limit (using rune-safe truncation)
+	message = truncateMessage(message, MaxMessageLength)
 
 	_, err := bot.PushMessage(&messaging_api.PushMessageRequest{
 		To: userID,

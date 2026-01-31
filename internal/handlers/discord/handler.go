@@ -224,11 +224,21 @@ func (h *Handler) handleMessageCreate(s *discordgo.Session, m *discordgo.Message
 		resp, err := h.router.Route(ctx, msg)
 		if err != nil {
 			h.logger.Error(ctx, "failed to route message", "error", err)
-			_, _ = s.ChannelMessageSend(m.ChannelID, handlers.FormatUserFriendlyError(err))
+			if _, sendErr := s.ChannelMessageSend(m.ChannelID, handlers.FormatUserFriendlyError(err)); sendErr != nil {
+				h.logger.Error(ctx, "failed to send error reply",
+					"message_id", m.ID,
+					"error", sendErr,
+				)
+			}
 			return
 		}
 		if resp != nil && resp.Text != "" {
-			_, _ = s.ChannelMessageSend(m.ChannelID, resp.Text)
+			if _, sendErr := s.ChannelMessageSend(m.ChannelID, resp.Text); sendErr != nil {
+				h.logger.Error(ctx, "failed to send reply after successful routing",
+					"message_id", m.ID,
+					"error", sendErr,
+				)
+			}
 		}
 	}
 }
@@ -572,6 +582,8 @@ func (h *Handler) cleanMentions(s *discordgo.Session, content string) string {
 }
 
 // SendMessage sends a message to a specific channel.
+// TODO: Implement rate limiting to respect Discord API limits
+// See https://discord.com/developers/docs/topics/rate-limits
 func (h *Handler) SendMessage(_ context.Context, channelID string, message string) error {
 	h.mu.RLock()
 	session := h.session
@@ -590,6 +602,8 @@ func (h *Handler) SendMessage(_ context.Context, channelID string, message strin
 }
 
 // SendEmbed sends an embed message to a specific channel.
+// TODO: Implement rate limiting to respect Discord API limits
+// See https://discord.com/developers/docs/topics/rate-limits
 func (h *Handler) SendEmbed(_ context.Context, channelID string, embed *discordgo.MessageEmbed) error {
 	h.mu.RLock()
 	session := h.session
