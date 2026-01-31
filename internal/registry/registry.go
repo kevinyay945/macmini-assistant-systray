@@ -3,6 +3,7 @@ package registry
 
 import (
 	"context"
+	"slices"
 	"sync"
 )
 
@@ -41,7 +42,7 @@ func (r *Registry) Get(name string) (Tool, bool) {
 	return tool, ok
 }
 
-// List returns all registered tool names.
+// List returns all registered tool names in sorted order for deterministic output.
 func (r *Registry) List() []string {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
@@ -49,5 +50,6 @@ func (r *Registry) List() []string {
 	for name := range r.tools {
 		names = append(names, name)
 	}
+	slices.Sort(names)
 	return names
 }

@@ -6,6 +6,12 @@ import (
 	"errors"
 )
 
+// Sentinel errors for the Google Drive tool.
+var (
+	ErrNotEnabled      = errors.New("google_drive tool is not enabled")
+	ErrMissingFilePath = errors.New("file_path parameter is required")
+)
+
 // Tool implements the Google Drive upload tool.
 type Tool struct {
 	enabled            bool
@@ -45,20 +51,20 @@ func (t *Tool) Description() string {
 //   - folder_id: Google Drive folder ID to upload to (optional)
 //   - name: Name for the uploaded file (optional, defaults to original filename)
 func (t *Tool) Execute(ctx context.Context, params map[string]interface{}) (interface{}, error) {
-	if !t.enabled {
-		return nil, errors.New("google_drive tool is not enabled")
-	}
-
-	// Check context cancellation
+	// Context check should be first to fail fast
 	select {
 	case <-ctx.Done():
 		return nil, ctx.Err()
 	default:
 	}
 
+	if !t.enabled {
+		return nil, ErrNotEnabled
+	}
+
 	filePath, ok := params["file_path"].(string)
 	if !ok || filePath == "" {
-		return nil, errors.New("file_path parameter is required")
+		return nil, ErrMissingFilePath
 	}
 
 	// TODO: Implement Google Drive upload

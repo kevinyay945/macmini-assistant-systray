@@ -619,6 +619,50 @@ check tools exist before installing these tools
 
 ---
 
+### Date: 2026-01-31 (Code Review Round 2 - Gilfoyle Style)
+
+**Note**: Second round of code quality improvements based on Gilfoyle-style code review:
+
+#### Fixed Issues:
+
+1. **config/config.go** - Added bidirectional LINE credential validation
+   - Now validates both directions: secret→token AND token→secret
+
+2. **registry/registry.go** - Added deterministic `List()` output
+   - Added `slices.Sort()` to ensure consistent ordering
+   - Added `TestRegistry_List_IsSorted` test to verify
+
+3. **copilot/client.go** - Added YAML/JSON struct tags to `Config`
+   - `APIKey` now has `yaml:"api_key" json:"api_key"` tags
+
+4. **handlers/line/handler.go** - Proper HTTP body handling
+   - Added `defer r.Body.Close()` to prevent connection leaks
+
+5. **tools/downie/downie.go** & **tools/gdrive/gdrive.go**:
+   - Context check moved to FIRST operation (fail fast)
+   - Added sentinel errors: `ErrNotEnabled`, `ErrMissingURL`, `ErrMissingFilePath`
+
+6. **registry_test.go** - Added concurrent access test
+   - `TestRegistry_ConcurrentAccess` validates thread safety with 100 goroutines
+
+7. **cmd/orchestrator/main.go** - Graceful shutdown support
+   - Added `signal.NotifyContext` for SIGINT/SIGTERM handling
+   - Refactored to `run()` function pattern to satisfy gocritic linter
+
+8. **downie_test.go** & **gdrive_test.go** - Fixed flaky tests
+   - Replaced `time.Sleep` race condition with `time.Now().Add(-time.Second)` deadline
+   - Now uses `errors.Is()` for precise sentinel error verification
+
+9. **config_test.go** - Added `TestConfig_Validate_LINERequiresSecret`
+   - Tests the reverse validation (token set but secret missing)
+
+#### Test Summary:
+- Total tests: **34** (was 31)
+- `make lint` - 0 issues
+- `make test` - All pass
+
+---
+
 ### Date: ____
 
 **Note**:

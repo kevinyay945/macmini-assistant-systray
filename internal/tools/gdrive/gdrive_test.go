@@ -2,6 +2,7 @@ package gdrive_test
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"time"
 
@@ -34,8 +35,8 @@ func TestTool_Execute_NotEnabled(t *testing.T) {
 	ctx := context.Background()
 
 	_, err := tool.Execute(ctx, map[string]interface{}{"file_path": "/path/to/file"})
-	if err == nil {
-		t.Error("Execute() should return error when tool is not enabled")
+	if !errors.Is(err, gdrive.ErrNotEnabled) {
+		t.Errorf("Execute() error = %v, want ErrNotEnabled", err)
 	}
 }
 
@@ -44,8 +45,8 @@ func TestTool_Execute_MissingFilePath(t *testing.T) {
 	ctx := context.Background()
 
 	_, err := tool.Execute(ctx, map[string]interface{}{})
-	if err == nil {
-		t.Error("Execute() should return error when file_path is missing")
+	if !errors.Is(err, gdrive.ErrMissingFilePath) {
+		t.Errorf("Execute() error = %v, want ErrMissingFilePath", err)
 	}
 }
 
@@ -55,20 +56,20 @@ func TestTool_Execute_ContextCanceled(t *testing.T) {
 	cancel()
 
 	_, err := tool.Execute(ctx, map[string]interface{}{"file_path": "/path/to/file"})
-	if err == nil {
-		t.Error("Execute() should return error when context is canceled")
+	if !errors.Is(err, context.Canceled) {
+		t.Errorf("Execute() error = %v, want context.Canceled", err)
 	}
 }
 
-func TestTool_Execute_ContextTimeout(t *testing.T) {
+func TestTool_Execute_ContextDeadlineExceeded(t *testing.T) {
 	tool := gdrive.New(gdrive.Config{Enabled: true})
-	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Nanosecond)
+	// Use an already-expired deadline to avoid flaky race conditions
+	ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(-time.Second))
 	defer cancel()
-	time.Sleep(1 * time.Millisecond)
 
 	_, err := tool.Execute(ctx, map[string]interface{}{"file_path": "/path/to/file"})
-	if err == nil {
-		t.Error("Execute() should return error when context times out")
+	if !errors.Is(err, context.DeadlineExceeded) {
+		t.Errorf("Execute() error = %v, want context.DeadlineExceeded", err)
 	}
 }
 

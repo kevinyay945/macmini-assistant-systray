@@ -28,6 +28,11 @@ func New(cfg Config) *Handler {
 // HandleWebhook processes incoming LINE webhook requests.
 // This is designed to be used with net/http or any HTTP framework.
 func (h *Handler) HandleWebhook(w http.ResponseWriter, r *http.Request) {
+	// Always close the request body to prevent connection leaks
+	if r.Body != nil {
+		defer r.Body.Close()
+	}
+
 	// TODO: Implement LINE webhook handling
 	// 1. Validate X-Line-Signature header
 	// 2. Parse webhook events from request body

@@ -13,7 +13,7 @@ type Client struct {
 
 // Config holds Copilot client configuration.
 type Config struct {
-	APIKey string
+	APIKey string `yaml:"api_key" json:"api_key"`
 }
 
 // New creates a new Copilot client.

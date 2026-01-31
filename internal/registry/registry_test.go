@@ -2,6 +2,8 @@ package registry_test
 
 import (
 	"context"
+	"fmt"
+	"sync"
 	"testing"
 
 	"github.com/kevinyay945/macmini-assistant-systray/internal/registry"
@@ -62,5 +64,57 @@ func TestRegistry_List(t *testing.T) {
 	names := r.List()
 	if len(names) != 2 {
 		t.Errorf("List() returned %d names, want 2", len(names))
+	}
+}
+
+func TestRegistry_List_IsSorted(t *testing.T) {
+	r := registry.New()
+	// Register in reverse order
+	r.Register(&mockTool{name: "zebra", description: "Z tool"})
+	r.Register(&mockTool{name: "alpha", description: "A tool"})
+	r.Register(&mockTool{name: "beta", description: "B tool"})
+
+	names := r.List()
+	expected := []string{"alpha", "beta", "zebra"}
+
+	for i, name := range names {
+		if name != expected[i] {
+			t.Errorf("List()[%d] = %q, want %q", i, name, expected[i])
+		}
+	}
+}
+
+func TestRegistry_ConcurrentAccess(t *testing.T) {
+	r := registry.New()
+	var wg sync.WaitGroup
+	const numGoroutines = 100
+
+	// Concurrent writes
+	for i := 0; i < numGoroutines; i++ {
+		wg.Add(1)
+		go func(n int) {
+			defer wg.Done()
+			r.Register(&mockTool{
+				name:        fmt.Sprintf("tool_%d", n),
+				description: "A concurrent tool",
+			})
+		}(i)
+	}
+
+	// Concurrent reads while writing
+	for i := 0; i < numGoroutines; i++ {
+		wg.Add(1)
+		go func(n int) {
+			defer wg.Done()
+			r.Get(fmt.Sprintf("tool_%d", n))
+			r.List()
+		}(i)
+	}
+
+	wg.Wait()
+
+	names := r.List()
+	if len(names) != numGoroutines {
+		t.Errorf("Expected %d tools, got %d", numGoroutines, len(names))
 	}
 }

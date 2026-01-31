@@ -7,6 +7,12 @@ import (
 	"fmt"
 )
 
+// Sentinel errors for the Downie tool.
+var (
+	ErrNotEnabled = errors.New("downie tool is not enabled")
+	ErrMissingURL = errors.New("url parameter is required")
+)
+
 // Tool implements the Downie video download tool.
 type Tool struct {
 	enabled bool
@@ -40,20 +46,20 @@ func (t *Tool) Description() string {
 //   - format: Output format (optional, default: mp4)
 //   - resolution: Video resolution (optional, default: 1080p)
 func (t *Tool) Execute(ctx context.Context, params map[string]interface{}) (interface{}, error) {
-	if !t.enabled {
-		return nil, errors.New("downie tool is not enabled")
-	}
-
-	// Check context cancellation
+	// Context check should be first to fail fast
 	select {
 	case <-ctx.Done():
 		return nil, ctx.Err()
 	default:
 	}
 
+	if !t.enabled {
+		return nil, ErrNotEnabled
+	}
+
 	url, ok := params["url"].(string)
 	if !ok || url == "" {
-		return nil, errors.New("url parameter is required")
+		return nil, ErrMissingURL
 	}
 
 	// TODO: Implement Downie deep link execution

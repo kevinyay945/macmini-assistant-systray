@@ -66,8 +66,12 @@ func (c *Config) Validate() error {
 		errs = append(errs, fmt.Errorf("server.port must be between 1 and 65535, got %d", c.Server.Port))
 	}
 
+	// LINE credentials require both secret and token
 	if c.LINE.ChannelSecret != "" && c.LINE.ChannelToken == "" {
 		errs = append(errs, errors.New("line.channel_token is required when line.channel_secret is set"))
+	}
+	if c.LINE.ChannelToken != "" && c.LINE.ChannelSecret == "" {
+		errs = append(errs, errors.New("line.channel_secret is required when line.channel_token is set"))
 	}
 
 	if c.Discord.Token != "" && c.Discord.GuildID == "" {

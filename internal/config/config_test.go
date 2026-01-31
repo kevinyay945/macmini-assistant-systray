@@ -55,6 +55,20 @@ func TestConfig_Validate_LINERequiresToken(t *testing.T) {
 	}
 }
 
+func TestConfig_Validate_LINERequiresSecret(t *testing.T) {
+	cfg := &config.Config{
+		Server: config.ServerConfig{Port: 8080},
+		LINE: config.LINEConfig{
+			ChannelSecret: "",
+			ChannelToken:  "token",
+		},
+	}
+
+	if err := cfg.Validate(); err == nil {
+		t.Error("Validate() should return error when LINE token is set but secret is missing")
+	}
+}
+
 func TestConfig_Validate_DiscordRequiresGuildID(t *testing.T) {
 	cfg := &config.Config{
 		Server: config.ServerConfig{Port: 8080},
