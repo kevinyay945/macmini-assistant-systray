@@ -21,6 +21,9 @@ var ErrToolTimeout = errors.New("tool execution timed out")
 // ErrDuplicateTool is returned when attempting to register a tool with a name that already exists.
 var ErrDuplicateTool = errors.New("tool already registered")
 
+// ErrInvalidParamType is returned when a parameter has an invalid type.
+var ErrInvalidParamType = errors.New("invalid parameter type")
+
 // Tool represents a registered tool that can be executed.
 type Tool interface {
 	Name() string
@@ -79,12 +82,27 @@ func New(opts ...Option) *Registry {
 	return r
 }
 
+// ErrDuplicateFactory is returned when attempting to register a factory with a type that already exists.
+var ErrDuplicateFactory = errors.New("factory already registered")
+
 // RegisterFactory registers a factory function for a tool type.
 // The factory will be used by LoadFromConfig to create tools.
-func (r *Registry) RegisterFactory(toolType string, factory ToolFactory) {
+// Returns ErrDuplicateFactory if a factory with the same type is already registered.
+func (r *Registry) RegisterFactory(toolType string, factory ToolFactory) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
+	if _, exists := r.factories[toolType]; exists {
+		return fmt.Errorf("%w: %s", ErrDuplicateFactory, toolType)
+	}
 	r.factories[toolType] = factory
+	return nil
+}
+
+// MustRegisterFactory registers a factory function, panicking on error.
+func (r *Registry) MustRegisterFactory(toolType string, factory ToolFactory) {
+	if err := r.RegisterFactory(toolType, factory); err != nil {
+		panic(err)
+	}
 }
 
 // Register adds a tool to the registry.
@@ -162,13 +180,29 @@ func (r *Registry) Execute(ctx context.Context, name string, params map[string]i
 		return nil, fmt.Errorf("%w: %s", ErrToolNotFound, name)
 	}
 
-	// Validate required parameters
+	// Make a copy of params to avoid mutating the original
+	execParams := make(map[string]interface{}, len(params))
+	for k, v := range params {
+		execParams[k] = v
+	}
+
+	// Validate and apply defaults for parameters
 	schema := tool.Schema()
 	for _, param := range schema.Inputs {
-		if param.Required {
-			if _, ok := params[param.Name]; !ok {
+		val, exists := execParams[param.Name]
+		if !exists {
+			if param.Required {
 				return nil, fmt.Errorf("missing required parameter: %s", param.Name)
 			}
+			// Apply default value if available
+			if param.Default != nil {
+				execParams[param.Name] = param.Default
+			}
+			continue
+		}
+		// Validate parameter type
+		if err := validateParamType(val, param.Type); err != nil {
+			return nil, fmt.Errorf("%w for parameter %s: %w", ErrInvalidParamType, param.Name, err)
 		}
 	}
 
@@ -184,8 +218,13 @@ func (r *Registry) Execute(ctx context.Context, name string, params map[string]i
 	resultCh := make(chan result, 1)
 
 	go func() {
-		output, err := tool.Execute(timeoutCtx, params)
-		resultCh <- result{output, err}
+		output, err := tool.Execute(timeoutCtx, execParams)
+		// Use select to avoid blocking if context is already cancelled
+		select {
+		case resultCh <- result{output, err}:
+		case <-timeoutCtx.Done():
+			// Context cancelled, result will be discarded
+		}
 	}()
 
 	select {
@@ -197,6 +236,51 @@ func (r *Registry) Execute(ctx context.Context, name string, params map[string]i
 	case res := <-resultCh:
 		return res.output, res.err
 	}
+}
+
+// validateParamType validates that a value matches the expected parameter type.
+func validateParamType(val interface{}, expectedType string) error {
+	if val == nil {
+		return nil // nil is acceptable for optional params
+	}
+
+	switch expectedType {
+	case "string":
+		if _, ok := val.(string); !ok {
+			return fmt.Errorf("expected string, got %T", val)
+		}
+	case "integer":
+		// Handle int, int64, float64 (JSON unmarshal produces float64 for numbers)
+		switch v := val.(type) {
+		case int, int32, int64:
+			// ok
+		case float64:
+			// Check if it's actually an integer value
+			if v != float64(int64(v)) {
+				return fmt.Errorf("expected integer, got float %v", v)
+			}
+		default:
+			return fmt.Errorf("expected integer, got %T", val)
+		}
+	case "boolean":
+		if _, ok := val.(bool); !ok {
+			return fmt.Errorf("expected boolean, got %T", val)
+		}
+	case "array":
+		switch val.(type) {
+		case []interface{}, []string, []int, []float64:
+			// ok
+		default:
+			return fmt.Errorf("expected array, got %T", val)
+		}
+	case "object":
+		if _, ok := val.(map[string]interface{}); !ok {
+			return fmt.Errorf("expected object, got %T", val)
+		}
+	default:
+		// Unknown type, skip validation
+	}
+	return nil
 }
 
 // LoadFromConfig creates and registers tools from configuration.
@@ -230,6 +314,8 @@ func (r *Registry) LoadFromConfig(tools []config.ToolConfig) error {
 
 // Timeout returns the current timeout setting.
 func (r *Registry) Timeout() time.Duration {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
 	return r.timeout
 }
 

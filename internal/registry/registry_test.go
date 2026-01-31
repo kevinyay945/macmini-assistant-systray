@@ -251,12 +251,15 @@ func TestRegistry_LoadFromConfig(t *testing.T) {
 	r := registry.New()
 
 	// Register a factory
-	r.RegisterFactory("test_type", func(cfg config.ToolConfig) (registry.Tool, error) {
+	err := r.RegisterFactory("test_type", func(cfg config.ToolConfig) (registry.Tool, error) {
 		return &mockTool{
 			name:        cfg.Name,
 			description: "Created from config",
 		}, nil
 	})
+	if err != nil {
+		t.Fatalf("RegisterFactory() returned error: %v", err)
+	}
 
 	tools := []config.ToolConfig{
 		{Name: "tool1", Type: "test_type", Enabled: true},
@@ -264,7 +267,7 @@ func TestRegistry_LoadFromConfig(t *testing.T) {
 		{Name: "disabled_tool", Type: "test_type", Enabled: false},
 	}
 
-	err := r.LoadFromConfig(tools)
+	err = r.LoadFromConfig(tools)
 	if err != nil {
 		t.Fatalf("LoadFromConfig() returned error: %v", err)
 	}
@@ -291,17 +294,40 @@ func TestRegistry_LoadFromConfig_UnknownType(t *testing.T) {
 func TestRegistry_LoadFromConfig_FactoryError(t *testing.T) {
 	r := registry.New()
 
-	r.RegisterFactory("failing_type", func(_ config.ToolConfig) (registry.Tool, error) {
+	err := r.RegisterFactory("failing_type", func(_ config.ToolConfig) (registry.Tool, error) {
 		return nil, errors.New("factory error")
 	})
+	if err != nil {
+		t.Fatalf("RegisterFactory() returned error: %v", err)
+	}
 
 	tools := []config.ToolConfig{
 		{Name: "tool1", Type: "failing_type", Enabled: true},
 	}
 
-	err := r.LoadFromConfig(tools)
+	err = r.LoadFromConfig(tools)
 	if err == nil {
 		t.Error("LoadFromConfig() should return error when factory fails")
+	}
+}
+
+func TestRegistry_RegisterFactory_Duplicate(t *testing.T) {
+	r := registry.New()
+
+	factory := func(_ config.ToolConfig) (registry.Tool, error) {
+		return &mockTool{name: "test"}, nil
+	}
+
+	if err := r.RegisterFactory("test_type", factory); err != nil {
+		t.Fatalf("First RegisterFactory() returned error: %v", err)
+	}
+
+	err := r.RegisterFactory("test_type", factory)
+	if err == nil {
+		t.Error("Second RegisterFactory() should return error for duplicate type")
+	}
+	if !errors.Is(err, registry.ErrDuplicateFactory) {
+		t.Errorf("Expected ErrDuplicateFactory, got: %v", err)
 	}
 }
 
@@ -365,5 +391,129 @@ func TestToolSchema_Validation(t *testing.T) {
 	}
 	if len(schema.Outputs) != 1 {
 		t.Errorf("Expected 1 output, got %d", len(schema.Outputs))
+	}
+}
+
+func TestRegistry_Execute_InvalidParamType(t *testing.T) {
+	r := registry.New()
+	r.MustRegister(&mockTool{
+		name: "test_tool",
+		schema: registry.ToolSchema{
+			Inputs: []registry.Parameter{
+				{Name: "count", Type: "integer", Required: true},
+			},
+		},
+	})
+
+	// Pass a string instead of integer
+	_, err := r.Execute(context.Background(), "test_tool", map[string]interface{}{
+		"count": "not-an-integer",
+	})
+	if err == nil {
+		t.Error("Execute() should return error for invalid parameter type")
+	}
+	if !errors.Is(err, registry.ErrInvalidParamType) {
+		t.Errorf("Expected ErrInvalidParamType, got: %v", err)
+	}
+}
+
+func TestRegistry_Execute_ValidParamTypes(t *testing.T) {
+	tests := []struct {
+		name      string
+		paramType string
+		value     interface{}
+	}{
+		{"string", "string", "hello"},
+		{"integer_int", "integer", 42},
+		{"integer_int64", "integer", int64(42)},
+		{"integer_float64", "integer", float64(42)}, // JSON numbers
+		{"boolean", "boolean", true},
+		{"array_interface", "array", []interface{}{"a", "b"}},
+		{"array_string", "array", []string{"a", "b"}},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			r := registry.New()
+			r.MustRegister(&mockTool{
+				name: "test_tool",
+				schema: registry.ToolSchema{
+					Inputs: []registry.Parameter{
+						{Name: "param", Type: tt.paramType, Required: true},
+					},
+				},
+			})
+
+			_, err := r.Execute(context.Background(), "test_tool", map[string]interface{}{
+				"param": tt.value,
+			})
+			if err != nil {
+				t.Errorf("Execute() returned error for valid %s: %v", tt.paramType, err)
+			}
+		})
+	}
+}
+
+func TestRegistry_Execute_DefaultValues(t *testing.T) {
+	r := registry.New()
+
+	var receivedParams map[string]interface{}
+	r.MustRegister(&mockTool{
+		name: "test_tool",
+		schema: registry.ToolSchema{
+			Inputs: []registry.Parameter{
+				{Name: "required_param", Type: "string", Required: true},
+				{Name: "optional_with_default", Type: "string", Required: false, Default: "default_value"},
+				{Name: "optional_no_default", Type: "string", Required: false},
+			},
+		},
+		executeFunc: func(_ context.Context, params map[string]interface{}) (map[string]interface{}, error) {
+			receivedParams = params
+			return map[string]interface{}{"status": "ok"}, nil
+		},
+	})
+
+	_, err := r.Execute(context.Background(), "test_tool", map[string]interface{}{
+		"required_param": "value",
+	})
+	if err != nil {
+		t.Fatalf("Execute() returned error: %v", err)
+	}
+
+	// Check that default value was applied
+	if receivedParams["optional_with_default"] != "default_value" {
+		t.Errorf("Default value not applied, got: %v", receivedParams["optional_with_default"])
+	}
+
+	// Check that optional without default is not in params
+	if _, exists := receivedParams["optional_no_default"]; exists {
+		t.Error("Optional param without default should not be in params")
+	}
+}
+
+func TestRegistry_Execute_DoesNotMutateOriginalParams(t *testing.T) {
+	r := registry.New()
+	r.MustRegister(&mockTool{
+		name: "test_tool",
+		schema: registry.ToolSchema{
+			Inputs: []registry.Parameter{
+				{Name: "required_param", Type: "string", Required: true},
+				{Name: "optional_with_default", Type: "string", Required: false, Default: "default_value"},
+			},
+		},
+	})
+
+	originalParams := map[string]interface{}{
+		"required_param": "value",
+	}
+
+	_, err := r.Execute(context.Background(), "test_tool", originalParams)
+	if err != nil {
+		t.Fatalf("Execute() returned error: %v", err)
+	}
+
+	// Check that original params were not modified
+	if _, exists := originalParams["optional_with_default"]; exists {
+		t.Error("Execute() should not mutate original params map")
 	}
 }

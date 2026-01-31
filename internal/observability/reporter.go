@@ -2,6 +2,7 @@ package observability
 
 import (
 	"context"
+	"sync"
 )
 
 // ErrorReporter is an interface for reporting errors to external systems.
@@ -39,24 +40,28 @@ func (r *LogReporter) Report(ctx context.Context, err error) {
 }
 
 // ReportWithContext logs the error with additional context.
+// Request ID priority: AppError.RequestID > context request ID
 func (r *LogReporter) ReportWithContext(ctx context.Context, err error, extra map[string]interface{}) {
-	attrs := make([]any, 0, len(extra)*2+4)
+	attrs := make([]any, 0, len(extra)*2+6)
 	attrs = append(attrs, "error", err.Error())
 
-	// Add request ID from context if available
-	if requestID := RequestIDFromContext(ctx); requestID != "" {
-		attrs = append(attrs, "request_id", requestID)
-	}
+	// Determine request ID: AppError takes priority over context
+	requestID := RequestIDFromContext(ctx)
 
 	// Add AppError specific fields
 	if appErr, ok := GetAppError(err); ok {
 		attrs = append(attrs, "error_code", appErr.Code)
 		if appErr.RequestID != "" {
-			attrs = append(attrs, "request_id", appErr.RequestID)
+			requestID = appErr.RequestID // AppError's RequestID takes priority
 		}
 		for k, v := range appErr.Extra {
 			attrs = append(attrs, k, v)
 		}
+	}
+
+	// Add request ID once (after determining priority)
+	if requestID != "" {
+		attrs = append(attrs, "request_id", requestID)
 	}
 
 	// Add extra context
@@ -77,16 +82,28 @@ func NewMultiReporter(reporters ...ErrorReporter) *MultiReporter {
 	return &MultiReporter{reporters: reporters}
 }
 
-// Report sends the error to all reporters.
+// Report sends the error to all reporters concurrently.
 func (m *MultiReporter) Report(ctx context.Context, err error) {
+	var wg sync.WaitGroup
 	for _, r := range m.reporters {
-		r.Report(ctx, err)
+		wg.Add(1)
+		go func(reporter ErrorReporter) {
+			defer wg.Done()
+			reporter.Report(ctx, err)
+		}(r)
 	}
+	wg.Wait()
 }
 
-// ReportWithContext sends the error with context to all reporters.
+// ReportWithContext sends the error with context to all reporters concurrently.
 func (m *MultiReporter) ReportWithContext(ctx context.Context, err error, extra map[string]interface{}) {
+	var wg sync.WaitGroup
 	for _, r := range m.reporters {
-		r.ReportWithContext(ctx, err, extra)
+		wg.Add(1)
+		go func(reporter ErrorReporter) {
+			defer wg.Done()
+			reporter.ReportWithContext(ctx, err, extra)
+		}(r)
 	}
+	wg.Wait()
 }

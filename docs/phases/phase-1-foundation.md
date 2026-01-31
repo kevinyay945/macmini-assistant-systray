@@ -1,7 +1,7 @@
 # Phase 1: Core Foundation
 
 **Duration**: Weeks 2-3
-**Status**: ⚪ Not Started
+**Status**: 🟢 Completed
 **Goal**: Build the foundational components without external integrations
 
 ---
@@ -15,14 +15,14 @@ This phase establishes the core infrastructure components: configuration system,
 ## 1.1 Configuration System
 
 **Duration**: 2 days
-**Status**: ⚪ Not Started
+**Status**: 🟢 Completed
 
 ### Tasks
 
-- [ ] Define config schema (YAML)
-- [ ] Implement config loader with validation
-- [ ] Add default config generation
-- [ ] Support environment variable overrides (optional)
+- [x] Define config schema (YAML)
+- [x] Implement config loader with validation
+- [x] Add default config generation
+- [x] Support environment variable overrides (optional)
 
 ### Implementation Details
 
@@ -88,29 +88,29 @@ func TestConfig_EnvironmentVariableExpansion(t *testing.T)
 
 ### Acceptance Criteria
 
-- [ ] Config loads from `~/.macmini-assistant/config.yaml`
-- [ ] Validation fails early with clear error messages
-- [ ] `orchestrator init` generates valid default config
-- [ ] All config fields have defaults or required validation
-- [ ] Environment variables are expanded (e.g., `${VAR_NAME}`)
+- [x] Config loads from `~/.macmini-assistant/config.yaml`
+- [x] Validation fails early with clear error messages
+- [x] `orchestrator init` generates valid default config
+- [x] All config fields have defaults or required validation
+- [x] Environment variables are expanded (e.g., `${VAR_NAME}`)
 
 ### Notes
 
-<!-- Add your notes here -->
+Implemented in `internal/config/config.go`. All tests passing.
 
 ---
 
 ## 1.2 Tool Registry
 
 **Duration**: 3 days
-**Status**: ⚪ Not Started
+**Status**: 🟢 Completed
 
 ### Tasks
 
-- [ ] Define tool interface
-- [ ] Implement registry with dynamic loading
-- [ ] Add tool metadata validation
-- [ ] Create tool execution wrapper (timeout, logging)
+- [x] Define tool interface
+- [x] Implement registry with dynamic loading
+- [x] Add tool metadata validation
+- [x] Create tool execution wrapper (timeout, logging)
 
 ### Implementation Details
 
@@ -190,30 +190,36 @@ func TestRegistry_ExecuteNonExistent(t *testing.T)
 
 ### Acceptance Criteria
 
-- [ ] Tools registered via config file
-- [ ] Tool execution respects 10-min timeout
-- [ ] Invalid parameters rejected with clear errors
-- [ ] Tool metadata accessible for Copilot SDK registration
-- [ ] Duplicate tool names are rejected
-- [ ] Registry is thread-safe for concurrent access
+- [x] Tools registered via config file
+- [x] Tool execution respects 10-min timeout
+- [x] Invalid parameters rejected with clear errors
+- [x] Tool metadata accessible for Copilot SDK registration
+- [x] Duplicate tool names are rejected
+- [x] Registry is thread-safe for concurrent access
 
 ### Notes
 
-<!-- Add your notes here -->
+Implemented in `internal/registry/registry.go`. Enhanced with:
+- Parameter type validation (`string`, `integer`, `boolean`, `array`, `object`)
+- Default value application for optional parameters
+- Goroutine-safe execution with timeout handling (fixed potential goroutine leak)
+- Factory pattern for tool creation (`RegisterFactory`, `MustRegisterFactory`)
+- Duplicate detection for both tools (`ErrDuplicateTool`) and factories (`ErrDuplicateFactory`)
+- Thread-safe `Timeout()` getter with read lock
 
 ---
 
 ## 1.3 Logging & Error Handling
 
 **Duration**: 2 days
-**Status**: ⚪ Not Started
+**Status**: 🟢 Completed
 
 ### Tasks
 
-- [ ] Set up structured logging (recommend: `log/slog`)
-- [ ] Define error types and wrapping
-- [ ] Create error reporter interface
-- [ ] Add request ID tracing
+- [x] Set up structured logging (recommend: `log/slog`)
+- [x] Define error types and wrapping
+- [x] Create error reporter interface
+- [x] Add request ID tracing
 
 ### Implementation Details
 
@@ -322,15 +328,20 @@ func TestRequestID_Propagation(t *testing.T)
 
 ### Acceptance Criteria
 
-- [ ] All logs in JSON format with timestamps
-- [ ] Errors include context (stack trace, request ID)
-- [ ] Log levels configurable (debug, info, warn, error)
-- [ ] No sensitive data in logs (API keys, tokens filtered)
-- [ ] Request IDs propagate through entire request lifecycle
+- [x] All logs in JSON format with timestamps
+- [x] Errors include context (stack trace, request ID)
+- [x] Log levels configurable (debug, info, warn, error)
+- [x] No sensitive data in logs (API keys, tokens filtered)
+- [x] Request IDs propagate through entire request lifecycle
 
 ### Notes
 
-<!-- Add your notes here -->
+Implemented in `internal/observability/`. Enhanced with:
+- `AppError` with fluent API: `WithCause()`, `WithMessage()`, `WithRequestID()`, `WithExtra()`
+- `UserMessage()` method for user-friendly error messages
+- `LogReporter` with proper request ID priority (AppError > context)
+- `MultiReporter` with parallel execution using `sync.WaitGroup`
+- Sentinel errors for common cases (`ErrConfigNotFound`, `ErrToolNotFound`, etc.)
 
 ---
 
@@ -338,10 +349,10 @@ func TestRequestID_Propagation(t *testing.T)
 
 By the end of Phase 1:
 
-- [ ] Configuration system fully functional
-- [ ] Tool registry with timeout enforcement
-- [ ] Structured logging throughout codebase
-- [ ] Error types and reporter interface
+- [x] Configuration system fully functional
+- [x] Tool registry with timeout enforcement
+- [x] Structured logging throughout codebase
+- [x] Error types and reporter interface
 
 ---
 
@@ -370,7 +381,16 @@ require (
 
 ## Notes & Discoveries
 
-<!-- Add notes during implementation -->
+### Code Review Improvements (2026-01-31)
+
+1. **Goroutine Leak Fix**: `Registry.Execute()` now uses select when sending to result channel to prevent goroutine leaks on timeout
+2. **Thread Safety**: `Timeout()` method now uses read lock for thread-safe access
+3. **RegisterFactory Error Handling**: Now returns `ErrDuplicateFactory` instead of silently overwriting
+4. **Request ID Priority**: `LogReporter` now correctly prioritizes AppError's RequestID over context
+5. **Parameter Type Validation**: Added `validateParamType()` for runtime type checking
+6. **Default Value Application**: `Execute()` now applies default values from schema
+7. **Parallel MultiReporter**: `MultiReporter` now executes reporters concurrently
+8. **Immutable Params**: `Execute()` copies params to avoid mutating caller's map
 
 ---
 
