@@ -1,0 +1,21 @@
+# Sample Configuration File
+# Copy this to ~/.macmini-assistant/config.yaml and fill in your values
+
+server:
+  port: 8080
+
+line:
+  channel_secret: ""
+  channel_token: ""
+
+discord:
+  token: ""
+  guild_id: ""
+
+tools:
+  downie:
+    enabled: true
+  google_drive:
+    enabled: true
+    credentials_path: ""
+    service_account_path: ""

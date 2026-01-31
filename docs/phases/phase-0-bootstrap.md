@@ -1,7 +1,7 @@
 # Phase 0: Project Bootstrap
 
 **Duration**: Week 1
-**Status**: 🔵 In Progress
+**Status**: ✅ Complete
 **Goal**: Set up project infrastructure and development environment
 
 ---
@@ -20,11 +20,11 @@ This phase establishes the foundation for all subsequent development work. By th
 
 - [x] Create `go.mod` with module path
 - [x] Add initial dependencies
-- [ ] Pin dependency versions
+- [x] Pin dependency versions (go.mod created with go 1.24)
 
 **Commands**:
 ```bash
-go mod init github.com/username/macmini-assistant-systray
+go mod init github.com/kevinyay945/macmini-assistant-systray
 go mod tidy
 ```
 
@@ -35,11 +35,11 @@ go mod tidy
 
 ### 0.2 Set Up Project Structure
 
-**Status**: ⚪ Not Started
+**Status**: ✅ Complete
 
-- [ ] Create directory structure
-- [ ] Add `.gitignore`
-- [ ] Create placeholder files
+- [x] Create directory structure
+- [x] Add `.gitignore`
+- [x] Create placeholder files
 
 **Directory Structure**:
 ```
@@ -79,14 +79,14 @@ macmini-assistant-systray/
 
 ### 0.3 Configure GitHub Actions CI/CD
 
-**Status**: ⚪ Not Started
+**Status**: ✅ Complete
 
 #### 0.3.1 Test Workflow
 
-- [ ] Create `.github/workflows/test.yml`
-- [ ] Configure Go version (1.22+)
-- [ ] Run tests (excluding `local` and `integration` tags)
-- [ ] Upload coverage reports
+- [x] Create `.github/workflows/test.yml`
+- [x] Configure Go version (1.22+)
+- [x] Run tests (excluding `local` and `integration` tags)
+- [x] Upload coverage reports
 
 **File**: `.github/workflows/test.yml`
 ```yaml
@@ -134,9 +134,9 @@ jobs:
 
 #### 0.3.2 Build Workflow
 
-- [ ] Create `.github/workflows/build.yml`
-- [ ] Build for macOS arm64 (M3)
-- [ ] Upload build artifacts
+- [x] Create `.github/workflows/build.yml`
+- [x] Build for macOS arm64 (M3)
+- [x] Upload build artifacts
 
 **File**: `.github/workflows/build.yml`
 ```yaml
@@ -177,9 +177,9 @@ jobs:
 
 #### 0.3.3 Release Workflow
 
-- [ ] Create `.github/workflows/release.yml`
-- [ ] Configure goreleaser
-- [ ] Trigger on version tags
+- [x] Create `.github/workflows/release.yml`
+- [x] Configure goreleaser
+- [x] Trigger on version tags
 
 **File**: `.github/workflows/release.yml`
 ```yaml
@@ -222,13 +222,13 @@ jobs:
 
 ### 0.4 Set Up Development Tools
 
-**Status**: ⚪ Not Started
+**Status**: ✅ Complete
 
 #### 0.4.1 golangci-lint Configuration
 
-- [ ] Create `.golangci.yml`
-- [ ] Configure linters
-- [ ] Set lint rules
+- [x] Create `.golangci.yml`
+- [x] Configure linters
+- [x] Set lint rules
 
 **File**: `.golangci.yml`
 ```yaml
@@ -282,9 +282,9 @@ issues:
 
 #### 0.4.2 Pre-commit Hooks
 
-- [ ] Install pre-commit
-- [ ] Create `.pre-commit-config.yaml`
-- [ ] Configure hooks (lint, test, format)
+- [x] Install pre-commit
+- [x] Create `.pre-commit-config.yaml`
+- [x] Configure hooks (lint, test, format)
 
 **File**: `.pre-commit-config.yaml`
 ```yaml
@@ -331,8 +331,8 @@ pre-commit install
 
 #### 0.4.3 Makefile
 
-- [ ] Create `Makefile`
-- [ ] Add common tasks
+- [x] Create `Makefile`
+- [x] Add common tasks
 
 **File**: `Makefile`
 ```makefile
@@ -420,13 +420,13 @@ help:
 
 ### 0.5 Create Base Documentation
 
-**Status**: 🔵 In Progress
+**Status**: ✅ Complete
 
 - [x] PRD (`docs/PRD.md`)
 - [x] Development Plan (`docs/DEVELOPMENT_PLAN.md`)
-- [ ] Contributing guidelines (`CONTRIBUTING.md`)
-- [ ] Architecture Decision Records template (`docs/adr/`)
-- [ ] README (`README.md`)
+- [ ] Contributing guidelines (`CONTRIBUTING.md`) - Deferred to later
+- [ ] Architecture Decision Records template (`docs/adr/`) - Deferred to later
+- [x] README (`README.md`)
 
 **Notes**:
 <!-- Add your notes here -->
@@ -435,11 +435,11 @@ help:
 
 ### 0.6 goreleaser Configuration
 
-**Status**: ⚪ Not Started
+**Status**: ✅ Complete
 
-- [ ] Create `.goreleaser.yml`
-- [ ] Configure macOS builds
-- [ ] Set up changelog generation
+- [x] Create `.goreleaser.yml`
+- [x] Configure macOS builds
+- [x] Set up changelog generation
 
 **File**: `.goreleaser.yml`
 ```yaml
@@ -490,7 +490,7 @@ changelog:
 
 release:
   github:
-    owner: username
+    owner: kevinyay945
     name: macmini-assistant-systray
   draft: false
   prerelease: auto
@@ -505,17 +505,17 @@ release:
 
 By the end of Phase 0, the following should be complete:
 
-- [ ] Working CI/CD pipeline
-  - [ ] Tests run on every PR
-  - [ ] Build succeeds on every PR
-  - [ ] Releases triggered by version tags
-- [ ] Project structure skeleton
-  - [ ] All directories created
-  - [ ] Placeholder files in place
-- [ ] Development environment documentation
-  - [ ] How to set up local environment
-  - [ ] How to run tests
-  - [ ] How to contribute
+- [x] Working CI/CD pipeline
+  - [x] Tests run on every PR
+  - [x] Build succeeds on every PR
+  - [x] Releases triggered by version tags
+- [x] Project structure skeleton
+  - [x] All directories created
+  - [x] Placeholder files in place
+- [x] Development environment documentation
+  - [x] How to set up local environment
+  - [x] How to run tests
+  - [ ] How to contribute (CONTRIBUTING.md deferred)
 
 ---
 
@@ -536,12 +536,12 @@ make test-local
 
 ## Acceptance Criteria
 
-- [ ] `make test` passes
-- [ ] `make lint` passes with no errors
-- [ ] `make build` produces a working binary
-- [ ] GitHub Actions workflows are green
-- [ ] README contains setup instructions
-- [ ] All team members can clone and run `make init`
+- [x] `make test` passes
+- [x] `make lint` passes with no errors
+- [x] `make build` produces a working binary
+- [ ] GitHub Actions workflows are green (needs push to verify)
+- [x] README contains setup instructions
+- [x] All team members can clone and run `make init`
 
 ---
 
@@ -568,9 +568,16 @@ uv tool install pre-commit
 <!-- Add any notes, discoveries, or decisions made during this phase -->
 check tools exist before installing these tools
 
-### Date: ____
+### Date: 2026-01-31
 
-**Note**:
+**Note**: Completed Phase 0 bootstrap:
+- Created go.mod with module path github.com/kevinyay945/macmini-assistant-systray
+- Set up full project structure with placeholder files for all packages
+- Created GitHub Actions workflows (test.yml, build.yml, release.yml, lint.yml)
+- Created Makefile, .pre-commit-config.yaml, .goreleaser.yml
+- Updated .gitignore with comprehensive ignore patterns
+- Created README.md with setup instructions
+- Verified: `make build`, `make lint`, `make test` all pass locally
 
 ---
 

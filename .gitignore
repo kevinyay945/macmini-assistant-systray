@@ -1,0 +1,55 @@
+# Binary and build outputs
+bin/
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Test artifacts
+coverage.out
+coverage.html
+*.test
+*.out
+
+# Go workspace files
+go.work
+
+# IDE and editor files
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# macOS files
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Dependency directories
+vendor/
+
+# Environment and secrets
+.env
+.env.local
+.env.*.local
+*.pem
+*.key
+secrets/
+
+# Config files with credentials
+config.yaml
+!test/fixtures/config.sample.yaml
+
+# Log files
+*.log
+logs/
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+
+# goreleaser
+dist/
