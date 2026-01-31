@@ -38,7 +38,7 @@ test-coverage:
 # Lint
 lint:
 	@echo "Linting..."
-	@golangci-lint run
+	@$(shell go env GOPATH)/bin/golangci-lint run
 
 # Clean build artifacts
 clean:
