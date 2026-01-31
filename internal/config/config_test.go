@@ -367,8 +367,7 @@ func TestConfig_Load_EnvironmentVariableWithDefault(t *testing.T) {
 	tmpDir := t.TempDir()
 	configPath := filepath.Join(tmpDir, "config.yaml")
 
-	// Ensure the env var is NOT set
-	t.Setenv("UNSET_VAR", "")
+	// LOG_LEVEL_UNSET is not set, so the default value "debug" should be used
 
 	content := `
 app:
