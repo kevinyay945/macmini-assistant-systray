@@ -66,12 +66,22 @@ func Load(path string) (*Config, error) {
 	return &cfg, nil
 }
 
-// expandEnvVars replaces ${VAR_NAME} patterns with environment variable values.
+// expandEnvVars replaces ${VAR_NAME} and ${VAR_NAME:-default} patterns with environment variable values.
+// Supports default values using the syntax ${VAR:-default_value}.
 func expandEnvVars(content string) string {
 	re := regexp.MustCompile(`\$\{([^}]+)\}`)
 	return re.ReplaceAllStringFunc(content, func(match string) string {
-		varName := strings.TrimPrefix(strings.TrimSuffix(match, "}"), "${")
-		return os.Getenv(varName)
+		inner := strings.TrimPrefix(strings.TrimSuffix(match, "}"), "${")
+		// Support ${VAR:-default} syntax
+		if idx := strings.Index(inner, ":-"); idx != -1 {
+			varName := inner[:idx]
+			defaultVal := inner[idx+2:]
+			if val := os.Getenv(varName); val != "" {
+				return val
+			}
+			return defaultVal
+		}
+		return os.Getenv(inner)
 	})
 }
 
@@ -292,6 +302,10 @@ func (c *Config) Validate() error {
 
 		// Validate google_drive tools have credentials
 		if tool.Type == "google_drive" && tool.Enabled {
+			if tool.Config == nil {
+				errs = append(errs, fmt.Errorf("tool %q requires config section", tool.Name))
+				continue
+			}
 			credPath, _ := tool.Config["credentials_path"].(string)
 			svcPath, _ := tool.Config["service_account_path"].(string)
 			if credPath == "" && svcPath == "" {

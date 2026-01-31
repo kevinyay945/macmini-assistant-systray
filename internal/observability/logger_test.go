@@ -152,6 +152,31 @@ func TestLogger_SensitiveDataFiltering(t *testing.T) {
 	}
 }
 
+func TestLogger_SensitiveValueFiltering(t *testing.T) {
+	var buf bytes.Buffer
+	l := observability.New(
+		observability.WithOutput(&buf),
+		observability.WithJSON(),
+	)
+	ctx := context.Background()
+
+	// Test that sensitive patterns in VALUES are also filtered
+	l.Info(ctx, "test", "data", "my_api_key=xyz123")
+	l.Info(ctx, "test", "message", "token: abc456")
+	l.Info(ctx, "test", "config", "password=hunter2")
+
+	output := buf.String()
+	if strings.Contains(output, "xyz123") {
+		t.Error("Logger should redact values containing api_key")
+	}
+	if strings.Contains(output, "abc456") {
+		t.Error("Logger should redact values containing token")
+	}
+	if strings.Contains(output, "hunter2") {
+		t.Error("Logger should redact values containing password")
+	}
+}
+
 func TestLogger_NonSensitiveDataNotFiltered(t *testing.T) {
 	var buf bytes.Buffer
 	l := observability.New(

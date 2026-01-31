@@ -6,6 +6,7 @@ import (
 	"errors"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/kevinyay945/macmini-assistant-systray/internal/observability"
 )
@@ -146,6 +147,68 @@ func TestMultiReporter_ReportWithContext(t *testing.T) {
 	if !strings.Contains(buf2.String(), "key") {
 		t.Error("MultiReporter should include context in second reporter")
 	}
+}
+
+func TestMultiReporter_Timeout(t *testing.T) {
+	// Test that MultiReporter doesn't block forever if a reporter is slow
+	// Use a channel to track when the fast reporter completes
+	fastReporterDone := make(chan struct{})
+	fastReporter := &trackingTestReporter{doneCh: fastReporterDone}
+
+	// Create a slow reporter that takes longer than the timeout
+	slowReporter := &slowTestReporter{delay: 10 * time.Second}
+
+	reporter := observability.NewMultiReporter(
+		fastReporter,
+		slowReporter,
+	)
+	ctx := context.Background()
+
+	start := time.Now()
+	reporter.Report(ctx, errors.New("timeout test"))
+	elapsed := time.Since(start)
+
+	// Should complete within the default timeout (5s) + some buffer
+	if elapsed > 6*time.Second {
+		t.Errorf("MultiReporter took too long: %v (expected < 6s)", elapsed)
+	}
+
+	// Fast reporter should have completed
+	select {
+	case <-fastReporterDone:
+		// Good, fast reporter completed
+	default:
+		t.Error("Fast reporter should have completed")
+	}
+}
+
+// trackingTestReporter tracks when Report is called.
+type trackingTestReporter struct {
+	doneCh chan struct{}
+}
+
+func (tr *trackingTestReporter) Report(_ context.Context, _ error) {
+	close(tr.doneCh)
+}
+
+func (tr *trackingTestReporter) ReportWithContext(_ context.Context, _ error, _ map[string]interface{}) {
+	close(tr.doneCh)
+}
+
+// slowTestReporter is a test reporter that deliberately takes a long time.
+type slowTestReporter struct {
+	delay time.Duration
+}
+
+func (s *slowTestReporter) Report(ctx context.Context, _ error) {
+	select {
+	case <-time.After(s.delay):
+	case <-ctx.Done():
+	}
+}
+
+func (s *slowTestReporter) ReportWithContext(ctx context.Context, err error, _ map[string]interface{}) {
+	s.Report(ctx, err)
 }
 
 func TestRequestID_Propagation(t *testing.T) {

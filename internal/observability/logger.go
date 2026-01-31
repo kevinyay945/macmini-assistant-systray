@@ -112,10 +112,20 @@ func (f *sensitiveFieldFilter) Handle(ctx context.Context, r slog.Record) error 
 	filteredRecord := slog.NewRecord(r.Time, r.Level, r.Message, r.PC)
 
 	r.Attrs(func(a slog.Attr) bool {
+		// Check if key contains sensitive patterns
 		for _, pattern := range f.patterns {
 			if pattern.MatchString(a.Key) {
 				filteredRecord.AddAttrs(slog.String(a.Key, "[REDACTED]"))
 				return true
+			}
+		}
+		// Also check if string value contains sensitive patterns
+		if strVal, ok := a.Value.Any().(string); ok {
+			for _, pattern := range f.patterns {
+				if pattern.MatchString(strVal) {
+					filteredRecord.AddAttrs(slog.String(a.Key, "[REDACTED]"))
+					return true
+				}
 			}
 		}
 		filteredRecord.AddAttrs(a)

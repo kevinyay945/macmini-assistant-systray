@@ -430,6 +430,8 @@ func TestRegistry_Execute_ValidParamTypes(t *testing.T) {
 		{"boolean", "boolean", true},
 		{"array_interface", "array", []interface{}{"a", "b"}},
 		{"array_string", "array", []string{"a", "b"}},
+		{"array_bool", "array", []bool{true, false}},
+		{"array_int", "array", []int{1, 2, 3}},
 	}
 
 	for _, tt := range tests {

@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"reflect"
 	"slices"
 	"sync"
 	"time"
@@ -219,11 +220,11 @@ func (r *Registry) Execute(ctx context.Context, name string, params map[string]i
 
 	go func() {
 		output, err := tool.Execute(timeoutCtx, execParams)
-		// Use select to avoid blocking if context is already cancelled
+		// Use select with default to avoid blocking if channel is full or context cancelled
 		select {
 		case resultCh <- result{output, err}:
-		case <-timeoutCtx.Done():
-			// Context cancelled, result will be discarded
+		default:
+			// Channel full or timeout already triggered, discard result
 		}
 	}()
 
@@ -267,10 +268,8 @@ func validateParamType(val interface{}, expectedType string) error {
 			return fmt.Errorf("expected boolean, got %T", val)
 		}
 	case "array":
-		switch val.(type) {
-		case []interface{}, []string, []int, []float64:
-			// ok
-		default:
+		rv := reflect.ValueOf(val)
+		if rv.Kind() != reflect.Slice && rv.Kind() != reflect.Array {
 			return fmt.Errorf("expected array, got %T", val)
 		}
 	case "object":

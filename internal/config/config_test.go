@@ -151,6 +151,26 @@ func TestConfig_Validate_GoogleDriveRequiresCredentials(t *testing.T) {
 	}
 }
 
+func TestConfig_Validate_GoogleDriveNilConfig(t *testing.T) {
+	cfg := &config.Config{
+		App:  config.AppConfig{LogLevel: "info"},
+		LINE: config.LINEConfig{WebhookPort: 8080},
+		Tools: []config.ToolConfig{
+			{
+				Name:    "gdrive",
+				Type:    "google_drive",
+				Enabled: true,
+				Config:  nil, // nil config should also error
+			},
+		},
+	}
+
+	err := cfg.Validate()
+	if err == nil {
+		t.Error("Validate() should return error when Google Drive config is nil")
+	}
+}
+
 func TestConfig_Validate_UpdaterRequiresRepo(t *testing.T) {
 	cfg := &config.Config{
 		App:     config.AppConfig{LogLevel: "info"},
@@ -340,6 +360,62 @@ line:
 	}
 	if cfg.LINE.ChannelSecret != "expanded-secret" {
 		t.Errorf("LINE.ChannelSecret = %q, want %q", cfg.LINE.ChannelSecret, "expanded-secret")
+	}
+}
+
+func TestConfig_Load_EnvironmentVariableWithDefault(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "config.yaml")
+
+	// Ensure the env var is NOT set
+	t.Setenv("UNSET_VAR", "")
+
+	content := `
+app:
+  log_level: "${LOG_LEVEL_UNSET:-debug}"
+  download_folder: "/tmp/test"
+line:
+  webhook_port: 8080
+`
+	if err := os.WriteFile(configPath, []byte(content), 0o644); err != nil {
+		t.Fatalf("Failed to create temp config file: %v", err)
+	}
+
+	cfg, err := config.Load(configPath)
+	if err != nil {
+		t.Fatalf("Load() returned error: %v", err)
+	}
+
+	if cfg.App.LogLevel != "debug" {
+		t.Errorf("App.LogLevel = %q, want %q (default value)", cfg.App.LogLevel, "debug")
+	}
+}
+
+func TestConfig_Load_EnvironmentVariableWithDefaultUsesEnvWhenSet(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "config.yaml")
+
+	// Set the env var
+	t.Setenv("LOG_LEVEL_SET", "warn")
+
+	content := `
+app:
+  log_level: "${LOG_LEVEL_SET:-debug}"
+  download_folder: "/tmp/test"
+line:
+  webhook_port: 8080
+`
+	if err := os.WriteFile(configPath, []byte(content), 0o644); err != nil {
+		t.Fatalf("Failed to create temp config file: %v", err)
+	}
+
+	cfg, err := config.Load(configPath)
+	if err != nil {
+		t.Fatalf("Load() returned error: %v", err)
+	}
+
+	if cfg.App.LogLevel != "warn" {
+		t.Errorf("App.LogLevel = %q, want %q (env value over default)", cfg.App.LogLevel, "warn")
 	}
 }
 

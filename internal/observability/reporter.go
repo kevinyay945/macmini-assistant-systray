@@ -3,6 +3,7 @@ package observability
 import (
 	"context"
 	"sync"
+	"time"
 )
 
 // ErrorReporter is an interface for reporting errors to external systems.
@@ -82,28 +83,49 @@ func NewMultiReporter(reporters ...ErrorReporter) *MultiReporter {
 	return &MultiReporter{reporters: reporters}
 }
 
-// Report sends the error to all reporters concurrently.
+// DefaultReportTimeout is the default timeout for multi-reporter operations.
+const DefaultReportTimeout = 5 * time.Second
+
+// Report sends the error to all reporters concurrently with a timeout.
+// If reporters don't complete within the timeout, the function returns anyway.
 func (m *MultiReporter) Report(ctx context.Context, err error) {
-	var wg sync.WaitGroup
-	for _, r := range m.reporters {
-		wg.Add(1)
-		go func(reporter ErrorReporter) {
-			defer wg.Done()
-			reporter.Report(ctx, err)
-		}(r)
-	}
-	wg.Wait()
+	m.reportWithTimeout(ctx, func(reporter ErrorReporter) {
+		reporter.Report(ctx, err)
+	})
 }
 
-// ReportWithContext sends the error with context to all reporters concurrently.
+// ReportWithContext sends the error with context to all reporters concurrently with a timeout.
+// If reporters don't complete within the timeout, the function returns anyway.
 func (m *MultiReporter) ReportWithContext(ctx context.Context, err error, extra map[string]interface{}) {
+	m.reportWithTimeout(ctx, func(reporter ErrorReporter) {
+		reporter.ReportWithContext(ctx, err, extra)
+	})
+}
+
+// reportWithTimeout executes the report function on all reporters with a timeout.
+func (m *MultiReporter) reportWithTimeout(ctx context.Context, reportFn func(ErrorReporter)) {
+	timeoutCtx, cancel := context.WithTimeout(ctx, DefaultReportTimeout)
+	defer cancel()
+
 	var wg sync.WaitGroup
 	for _, r := range m.reporters {
 		wg.Add(1)
 		go func(reporter ErrorReporter) {
 			defer wg.Done()
-			reporter.ReportWithContext(ctx, err, extra)
+			reportFn(reporter)
 		}(r)
 	}
-	wg.Wait()
+
+	done := make(chan struct{})
+	go func() {
+		wg.Wait()
+		close(done)
+	}()
+
+	select {
+	case <-done:
+		// All reporters completed
+	case <-timeoutCtx.Done():
+		// Timeout reached, some reporters may still be running
+	}
 }
