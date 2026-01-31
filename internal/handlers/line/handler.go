@@ -29,6 +29,9 @@ var ErrEmptyMessage = errors.New("empty message content")
 // MaxMessageLength is the maximum length for reply messages (LINE limit is 5000).
 const MaxMessageLength = 5000
 
+// DefaultReplyTimeout is the default timeout for reply message operations.
+const DefaultReplyTimeout = 30 * time.Second
+
 // Handler processes LINE bot webhook events.
 type Handler struct {
 	channelSecret string
@@ -357,20 +360,9 @@ func (h *Handler) PushMessage(ctx context.Context, userID string, message string
 }
 
 // FormatErrorMessage formats an error into a user-friendly message.
+// Deprecated: Use handlers.FormatUserFriendlyError instead for consistency.
 func FormatErrorMessage(err error) string {
-	if err == nil {
-		return ""
-	}
-
-	// Check for specific error types
-	if errors.Is(err, context.DeadlineExceeded) {
-		return "Request timed out. Please try again."
-	}
-	if errors.Is(err, context.Canceled) {
-		return "Request was cancelled."
-	}
-
-	return "An error occurred while processing your request. Please try again later."
+	return handlers.FormatUserFriendlyError(err)
 }
 
 // ParseMessage converts a LINE MessageEvent into a platform-agnostic Message.
@@ -394,7 +386,7 @@ func (h *Handler) ParseMessage(e webhook.MessageEvent) (*handlers.Message, error
 	userID := h.getUserIDFromSource(e.Source)
 
 	replyFunc := func(response string) error {
-		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		ctx, cancel := context.WithTimeout(context.Background(), DefaultReplyTimeout)
 		defer cancel()
 		return h.sendReply(ctx, e.ReplyToken, response)
 	}

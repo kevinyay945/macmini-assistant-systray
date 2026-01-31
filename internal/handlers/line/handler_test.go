@@ -201,17 +201,17 @@ func TestHandler_ErrorFormatting(t *testing.T) {
 		{
 			name:    "context deadline exceeded",
 			err:     context.DeadlineExceeded,
-			wantMsg: "Request timed out. Please try again.",
+			wantMsg: "⏱️ Request timed out. Please try again.",
 		},
 		{
 			name:    "context canceled",
 			err:     context.Canceled,
-			wantMsg: "Request was cancelled.",
+			wantMsg: "🚫 Request was cancelled.",
 		},
 		{
 			name:    "generic error",
 			err:     errors.New("something went wrong"),
-			wantMsg: "An error occurred while processing your request. Please try again later.",
+			wantMsg: "❌ An error occurred while processing your request. Please try again later.",
 		},
 	}
 

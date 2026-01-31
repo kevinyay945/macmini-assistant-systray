@@ -3,7 +3,14 @@ package handlers
 
 import (
 	"context"
+	"errors"
 	"time"
+)
+
+// Platform constants for message sources.
+const (
+	PlatformDiscord = "discord"
+	PlatformLINE    = "line"
 )
 
 // Message represents a platform-agnostic incoming message.
@@ -89,6 +96,24 @@ func (f *DefaultErrorFormatter) FormatError(err error) string {
 		return ""
 	}
 	return "An error occurred: " + err.Error()
+}
+
+// FormatUserFriendlyError formats an error into a user-friendly message.
+// This is the canonical error formatter used across all platform handlers.
+func FormatUserFriendlyError(err error) string {
+	if err == nil {
+		return ""
+	}
+
+	// Check for specific error types
+	if errors.Is(err, context.DeadlineExceeded) {
+		return "⏱️ Request timed out. Please try again."
+	}
+	if errors.Is(err, context.Canceled) {
+		return "🚫 Request was cancelled."
+	}
+
+	return "❌ An error occurred while processing your request. Please try again later."
 }
 
 // NewMessage creates a new Message with the given parameters.

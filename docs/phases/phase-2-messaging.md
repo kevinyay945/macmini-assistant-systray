@@ -207,13 +207,14 @@ please show me how to setup the cert
 ## 2.3 Unified Message Interface
 
 **Duration**: 2 days
-**Status**: ⚪ Not Started
+**Status**: ✅ Complete
 
 ### Tasks
 
-- [ ] Abstract message interface for platforms
-- [ ] Common message routing logic
-- [ ] Platform-agnostic error formatting
+- [x] Abstract message interface for platforms
+- [x] Common message routing logic
+- [x] Platform-agnostic error formatting
+- [x] Exported platform constants for type safety
 
 ### Implementation Details
 
@@ -221,15 +222,27 @@ please show me how to setup the cert
 // internal/handlers/interface.go
 package handlers
 
-import "context"
+import (
+    "context"
+    "errors"
+    "time"
+)
+
+// Platform constants for message sources
+const (
+    PlatformDiscord = "discord"
+    PlatformLINE    = "line"
+)
 
 // Message represents a platform-agnostic message
 type Message struct {
     ID        string
     UserID    string
-    Platform  string // "line", "discord"
+    Platform  string // Use PlatformDiscord or PlatformLINE constants
     Content   string
+    Timestamp time.Time
     ReplyFunc func(response string) error
+    Metadata  map[string]interface{}
 }
 
 // MessageRouter routes messages to the orchestrator
@@ -246,13 +259,34 @@ type Response struct {
 
 // StatusMessage for status panel
 type StatusMessage struct {
-    Type      string // "start", "complete", "error"
+    Type      string // "start", "progress", "complete", "error"
     ToolName  string
     UserID    string
     Platform  string
     Duration  time.Duration
     Result    map[string]interface{}
     Error     error
+    Message   string
+}
+
+// StatusReporter defines the interface for posting status updates
+type StatusReporter interface {
+    PostStatus(ctx context.Context, msg StatusMessage) error
+}
+
+// FormatUserFriendlyError formats an error into a user-friendly message
+// with emoji support (canonical error formatter for all platforms)
+func FormatUserFriendlyError(err error) string {
+    if err == nil {
+        return ""
+    }
+    if errors.Is(err, context.DeadlineExceeded) {
+        return "⏱️ Request timed out. Please try again."
+    }
+    if errors.Is(err, context.Canceled) {
+        return "🚫 Request was cancelled."
+    }
+    return "❌ An error occurred while processing your request. Please try again later."
 }
 ```
 
@@ -260,18 +294,29 @@ type StatusMessage struct {
 
 ```go
 // internal/handlers/interface_test.go
-func TestMessageInterface_Routing(t *testing.T)
-func TestMessageInterface_ErrorFormatting(t *testing.T)
-func TestMessageInterface_PlatformConversion(t *testing.T)
-func TestMessage_FromLINE(t *testing.T)
-func TestMessage_FromDiscord(t *testing.T)
+func TestPlatformConstants(t *testing.T)
+func TestNewMessage(t *testing.T)
+func TestNewMessage_FromLINE(t *testing.T)
+func TestNewMessage_FromDiscord(t *testing.T)
+func TestNewResponse(t *testing.T)
+func TestNewErrorResponse(t *testing.T)
+func TestNewStatusMessage(t *testing.T)
+func TestStatusMessage_WithDuration(t *testing.T)
+func TestStatusMessage_WithError(t *testing.T)
+func TestDefaultErrorFormatter_FormatError(t *testing.T)
+func TestMessage_MetadataUsage(t *testing.T)
+func TestResponse_DataUsage(t *testing.T)
+func TestStatusMessage_AllTypes(t *testing.T)
+func TestFormatUserFriendlyError(t *testing.T)
 ```
 
 ### Acceptance Criteria
 
-- [ ] Single interface for LINE and Discord
-- [ ] Platform-specific formatting abstracted
-- [ ] Easy to add new platforms (Slack, etc.)
+- [x] Single interface for LINE and Discord
+- [x] Platform-specific formatting abstracted
+- [x] Exported platform constants for type safety
+- [x] Shared error formatter with emoji support
+- [x] Easy to add new platforms (Slack, etc.)
 
 ### Notes
 

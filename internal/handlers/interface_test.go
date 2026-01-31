@@ -1,6 +1,7 @@
 package handlers_test
 
 import (
+	"context"
 	"errors"
 	"testing"
 	"time"
@@ -8,10 +9,15 @@ import (
 	"github.com/kevinyay945/macmini-assistant-systray/internal/handlers"
 )
 
-const (
-	platformDiscord = "discord"
-	platformLINE    = "line"
-)
+func TestPlatformConstants(t *testing.T) {
+	// Ensure platform constants are defined correctly
+	if handlers.PlatformDiscord != "discord" {
+		t.Errorf("PlatformDiscord = %q, want %q", handlers.PlatformDiscord, "discord")
+	}
+	if handlers.PlatformLINE != "line" {
+		t.Errorf("PlatformLINE = %q, want %q", handlers.PlatformLINE, "line")
+	}
+}
 
 func TestNewMessage(t *testing.T) {
 	called := false
@@ -20,7 +26,7 @@ func TestNewMessage(t *testing.T) {
 		return nil
 	}
 
-	msg := handlers.NewMessage("msg123", "user456", platformDiscord, "hello world", replyFunc)
+	msg := handlers.NewMessage("msg123", "user456", handlers.PlatformDiscord, "hello world", replyFunc)
 
 	if msg.ID != "msg123" {
 		t.Errorf("ID = %q, want %q", msg.ID, "msg123")
@@ -28,8 +34,8 @@ func TestNewMessage(t *testing.T) {
 	if msg.UserID != "user456" {
 		t.Errorf("UserID = %q, want %q", msg.UserID, "user456")
 	}
-	if msg.Platform != platformDiscord {
-		t.Errorf("Platform = %q, want %q", msg.Platform, platformDiscord)
+	if msg.Platform != handlers.PlatformDiscord {
+		t.Errorf("Platform = %q, want %q", msg.Platform, handlers.PlatformDiscord)
 	}
 	if msg.Content != "hello world" {
 		t.Errorf("Content = %q, want %q", msg.Content, "hello world")
@@ -51,10 +57,10 @@ func TestNewMessage(t *testing.T) {
 }
 
 func TestNewMessage_FromLINE(t *testing.T) {
-	msg := handlers.NewMessage("line-msg-id", "U12345", platformLINE, "LINE message", nil)
+	msg := handlers.NewMessage("line-msg-id", "U12345", handlers.PlatformLINE, "LINE message", nil)
 
-	if msg.Platform != platformLINE {
-		t.Errorf("Platform = %q, want %q", msg.Platform, platformLINE)
+	if msg.Platform != handlers.PlatformLINE {
+		t.Errorf("Platform = %q, want %q", msg.Platform, handlers.PlatformLINE)
 	}
 	if msg.ID != "line-msg-id" {
 		t.Errorf("ID = %q, want %q", msg.ID, "line-msg-id")
@@ -62,10 +68,10 @@ func TestNewMessage_FromLINE(t *testing.T) {
 }
 
 func TestNewMessage_FromDiscord(t *testing.T) {
-	msg := handlers.NewMessage("discord-msg-id", "123456789", platformDiscord, "Discord message", nil)
+	msg := handlers.NewMessage("discord-msg-id", "123456789", handlers.PlatformDiscord, "Discord message", nil)
 
-	if msg.Platform != platformDiscord {
-		t.Errorf("Platform = %q, want %q", msg.Platform, platformDiscord)
+	if msg.Platform != handlers.PlatformDiscord {
+		t.Errorf("Platform = %q, want %q", msg.Platform, handlers.PlatformDiscord)
 	}
 	if msg.ID != "discord-msg-id" {
 		t.Errorf("ID = %q, want %q", msg.ID, "discord-msg-id")
@@ -99,7 +105,7 @@ func TestNewErrorResponse(t *testing.T) {
 }
 
 func TestNewStatusMessage(t *testing.T) {
-	status := handlers.NewStatusMessage("start", "youtube_download", "user123", platformDiscord)
+	status := handlers.NewStatusMessage("start", "youtube_download", "user123", handlers.PlatformDiscord)
 
 	if status.Type != "start" {
 		t.Errorf("Type = %q, want %q", status.Type, "start")
@@ -110,8 +116,8 @@ func TestNewStatusMessage(t *testing.T) {
 	if status.UserID != "user123" {
 		t.Errorf("UserID = %q, want %q", status.UserID, "user123")
 	}
-	if status.Platform != platformDiscord {
-		t.Errorf("Platform = %q, want %q", status.Platform, platformDiscord)
+	if status.Platform != handlers.PlatformDiscord {
+		t.Errorf("Platform = %q, want %q", status.Platform, handlers.PlatformDiscord)
 	}
 	if status.Result == nil {
 		t.Error("Result should be initialized")
@@ -119,7 +125,7 @@ func TestNewStatusMessage(t *testing.T) {
 }
 
 func TestStatusMessage_WithDuration(t *testing.T) {
-	status := handlers.NewStatusMessage("complete", "youtube_download", "user123", platformLINE)
+	status := handlers.NewStatusMessage("complete", "youtube_download", "user123", handlers.PlatformLINE)
 	status.Duration = 32500 * time.Millisecond
 
 	if status.Duration != 32500*time.Millisecond {
@@ -128,7 +134,7 @@ func TestStatusMessage_WithDuration(t *testing.T) {
 }
 
 func TestStatusMessage_WithError(t *testing.T) {
-	status := handlers.NewStatusMessage("error", "gdrive_upload", "user456", platformDiscord)
+	status := handlers.NewStatusMessage("error", "gdrive_upload", "user456", handlers.PlatformDiscord)
 	status.Error = errors.New("upload failed")
 
 	if status.Error == nil {
@@ -175,7 +181,7 @@ func TestDefaultErrorFormatter_FormatError(t *testing.T) {
 }
 
 func TestMessage_MetadataUsage(t *testing.T) {
-	msg := handlers.NewMessage("id", "user", platformDiscord, "content", nil)
+	msg := handlers.NewMessage("id", "user", handlers.PlatformDiscord, "content", nil)
 
 	// Add metadata
 	msg.Metadata["channel_id"] = "123456"
@@ -208,9 +214,47 @@ func TestStatusMessage_AllTypes(t *testing.T) {
 	types := []string{"start", "progress", "complete", "error"}
 
 	for _, msgType := range types {
-		status := handlers.NewStatusMessage(msgType, "test_tool", "user", platformDiscord)
+		status := handlers.NewStatusMessage(msgType, "test_tool", "user", handlers.PlatformDiscord)
 		if status.Type != msgType {
 			t.Errorf("Type = %q, want %q", status.Type, msgType)
 		}
+	}
+}
+
+func TestFormatUserFriendlyError(t *testing.T) {
+	tests := []struct {
+		name    string
+		err     error
+		wantMsg string
+	}{
+		{
+			name:    "nil error",
+			err:     nil,
+			wantMsg: "",
+		},
+		{
+			name:    "context deadline exceeded",
+			err:     context.DeadlineExceeded,
+			wantMsg: "⏱️ Request timed out. Please try again.",
+		},
+		{
+			name:    "context canceled",
+			err:     context.Canceled,
+			wantMsg: "🚫 Request was cancelled.",
+		},
+		{
+			name:    "generic error",
+			err:     errors.New("something went wrong"),
+			wantMsg: "❌ An error occurred while processing your request. Please try again later.",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := handlers.FormatUserFriendlyError(tt.err)
+			if got != tt.wantMsg {
+				t.Errorf("FormatUserFriendlyError() = %q, want %q", got, tt.wantMsg)
+			}
+		})
 	}
 }

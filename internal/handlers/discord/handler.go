@@ -572,7 +572,7 @@ func (h *Handler) cleanMentions(s *discordgo.Session, content string) string {
 }
 
 // SendMessage sends a message to a specific channel.
-func (h *Handler) SendMessage(ctx context.Context, channelID string, message string) error {
+func (h *Handler) SendMessage(_ context.Context, channelID string, message string) error {
 	h.mu.RLock()
 	session := h.session
 	h.mu.RUnlock()
@@ -590,7 +590,7 @@ func (h *Handler) SendMessage(ctx context.Context, channelID string, message str
 }
 
 // SendEmbed sends an embed message to a specific channel.
-func (h *Handler) SendEmbed(ctx context.Context, channelID string, embed *discordgo.MessageEmbed) error {
+func (h *Handler) SendEmbed(_ context.Context, channelID string, embed *discordgo.MessageEmbed) error {
 	h.mu.RLock()
 	session := h.session
 	h.mu.RUnlock()
@@ -608,18 +608,7 @@ func (h *Handler) SendEmbed(ctx context.Context, channelID string, embed *discor
 }
 
 // FormatErrorMessage formats an error into a user-friendly message.
+// Deprecated: Use handlers.FormatUserFriendlyError instead for consistency.
 func FormatErrorMessage(err error) string {
-	if err == nil {
-		return ""
-	}
-
-	// Check for specific error types
-	if errors.Is(err, context.DeadlineExceeded) {
-		return "⏱️ Request timed out. Please try again."
-	}
-	if errors.Is(err, context.Canceled) {
-		return "🚫 Request was cancelled."
-	}
-
-	return "❌ An error occurred while processing your request. Please try again later."
+	return handlers.FormatUserFriendlyError(err)
 }
