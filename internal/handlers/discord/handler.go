@@ -1,23 +1,38 @@
 // Package discord provides Discord bot event handling.
 package discord
 
+import (
+	"github.com/kevinyay945/macmini-assistant-systray/internal/copilot"
+	"github.com/kevinyay945/macmini-assistant-systray/internal/handlers"
+	"github.com/kevinyay945/macmini-assistant-systray/internal/registry"
+)
+
+// Compile-time interface check
+var _ handlers.Handler = (*Handler)(nil)
+
 // Handler processes Discord bot events.
 type Handler struct {
-	token   string
-	guildID string
+	token    string
+	guildID  string
+	copilot  *copilot.Client
+	registry *registry.Registry
 }
 
 // Config holds Discord handler configuration.
 type Config struct {
-	Token   string
-	GuildID string
+	Token    string
+	GuildID  string
+	Copilot  *copilot.Client
+	Registry *registry.Registry
 }
 
 // New creates a new Discord event handler.
 func New(cfg Config) *Handler {
 	return &Handler{
-		token:   cfg.Token,
-		guildID: cfg.GuildID,
+		token:    cfg.Token,
+		guildID:  cfg.GuildID,
+		copilot:  cfg.Copilot,
+		registry: cfg.Registry,
 	}
 }
 

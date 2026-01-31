@@ -3,18 +3,29 @@ package line
 
 import (
 	"net/http"
+
+	"github.com/kevinyay945/macmini-assistant-systray/internal/copilot"
+	"github.com/kevinyay945/macmini-assistant-systray/internal/handlers"
+	"github.com/kevinyay945/macmini-assistant-systray/internal/registry"
 )
+
+// Compile-time interface check
+var _ handlers.Handler = (*Handler)(nil)
 
 // Handler processes LINE bot webhook events.
 type Handler struct {
 	channelSecret string
 	channelToken  string
+	copilot       *copilot.Client
+	registry      *registry.Registry
 }
 
 // Config holds LINE handler configuration.
 type Config struct {
 	ChannelSecret string
 	ChannelToken  string
+	Copilot       *copilot.Client
+	Registry      *registry.Registry
 }
 
 // New creates a new LINE webhook handler.
@@ -22,6 +33,8 @@ func New(cfg Config) *Handler {
 	return &Handler{
 		channelSecret: cfg.ChannelSecret,
 		channelToken:  cfg.ChannelToken,
+		copilot:       cfg.Copilot,
+		registry:      cfg.Registry,
 	}
 }
 

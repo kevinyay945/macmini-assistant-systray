@@ -30,6 +30,33 @@ func TestTool_Description(t *testing.T) {
 	}
 }
 
+func TestTool_Parameters(t *testing.T) {
+	tool := downie.New(downie.Config{})
+	params := tool.Parameters()
+
+	if len(params) != 3 {
+		t.Errorf("Parameters() returned %d params, want 3", len(params))
+	}
+
+	// Check required URL parameter
+	urlParam := params[0]
+	if urlParam.Name != "url" {
+		t.Errorf("First param name = %q, want 'url'", urlParam.Name)
+	}
+	if !urlParam.Required {
+		t.Error("URL parameter should be required")
+	}
+
+	// Check optional parameters have defaults
+	formatParam := params[1]
+	if formatParam.Required {
+		t.Error("format parameter should not be required")
+	}
+	if formatParam.Default != "mp4" {
+		t.Errorf("format default = %v, want 'mp4'", formatParam.Default)
+	}
+}
+
 func TestTool_Execute_NotEnabled(t *testing.T) {
 	tool := downie.New(downie.Config{Enabled: false})
 	ctx := context.Background()

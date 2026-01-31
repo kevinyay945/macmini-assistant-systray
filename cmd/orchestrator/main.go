@@ -10,6 +10,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/kevinyay945/macmini-assistant-systray/internal/config"
+	"github.com/kevinyay945/macmini-assistant-systray/internal/observability"
 )
 
 // Build-time variables (set by goreleaser)
@@ -64,24 +65,34 @@ messaging platforms, powered by GitHub Copilot SDK.`,
 
 // runOrchestrator starts the main application loop with context support.
 func runOrchestrator(ctx context.Context) {
-	fmt.Println("MacMini Assistant Orchestrator")
-	fmt.Println("Status: Phase 0 Bootstrap - Under Development")
-	fmt.Println()
+	// Initialize logger
+	logger := observability.New(
+		observability.WithLevel(observability.LevelInfo),
+	)
+
+	logger.Info(ctx, "MacMini Assistant Orchestrator starting",
+		"version", version,
+		"commit", commit,
+		"status", "Phase 0 Bootstrap - Under Development",
+	)
 
 	// Attempt to load configuration
 	cfg, err := config.Load("")
 	if err != nil {
-		fmt.Printf("Note: Could not load config: %v\n", err)
-		fmt.Println("Create ~/.macmini-assistant/config.yaml to configure the application.")
+		logger.Warn(ctx, "could not load config, using defaults",
+			"error", err,
+			"hint", "Create ~/.macmini-assistant/config.yaml to configure the application",
+		)
 	} else {
-		fmt.Printf("Configuration loaded successfully (server port: %d)\n", cfg.Server.Port)
+		logger.Info(ctx, "configuration loaded successfully",
+			"server_port", cfg.Server.Port,
+			"copilot_timeout", cfg.Copilot.Timeout,
+		)
 	}
 
-	fmt.Println()
-	fmt.Println("Use --help to see available commands.")
-	fmt.Println("Press Ctrl+C to exit.")
+	logger.Info(ctx, "Use --help to see available commands. Press Ctrl+C to exit.")
 
 	// Wait for context cancellation (signal received)
 	<-ctx.Done()
-	fmt.Println("\nShutting down gracefully...")
+	logger.Info(ctx, "Shutting down gracefully...")
 }

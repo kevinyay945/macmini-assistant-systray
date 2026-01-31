@@ -4,7 +4,14 @@ package gdrive
 import (
 	"context"
 	"errors"
+	"fmt"
+
+	"github.com/kevinyay945/macmini-assistant-systray/internal/registry"
+	"github.com/kevinyay945/macmini-assistant-systray/internal/tools"
 )
+
+// Compile-time interface check
+var _ registry.Tool = (*Tool)(nil)
 
 // Sentinel errors for the Google Drive tool.
 var (
@@ -45,6 +52,30 @@ func (t *Tool) Description() string {
 	return "Upload files to Google Drive"
 }
 
+// Parameters returns the tool parameter definitions for LLM integration.
+func (t *Tool) Parameters() []registry.ParameterDef {
+	return []registry.ParameterDef{
+		{
+			Name:        "file_path",
+			Type:        "string",
+			Required:    true,
+			Description: "Local path to the file to upload",
+		},
+		{
+			Name:        "folder_id",
+			Type:        "string",
+			Required:    false,
+			Description: "Google Drive folder ID to upload to (defaults to root)",
+		},
+		{
+			Name:        "name",
+			Type:        "string",
+			Required:    false,
+			Description: "Name for the uploaded file (defaults to original filename)",
+		},
+	}
+}
+
 // Execute runs the Google Drive upload with the given parameters.
 // Parameters:
 //   - file_path: Local path to the file to upload (required)
@@ -62,17 +93,22 @@ func (t *Tool) Execute(ctx context.Context, params map[string]interface{}) (inte
 		return nil, ErrNotEnabled
 	}
 
-	filePath, ok := params["file_path"].(string)
-	if !ok || filePath == "" {
+	filePath, err := tools.GetRequiredString(params, "file_path")
+	if err != nil {
 		return nil, ErrMissingFilePath
 	}
+
+	folderID := tools.GetOptionalString(params, "folder_id", "")
+	name := tools.GetOptionalString(params, "name", "")
 
 	// TODO: Implement Google Drive upload
 	// 1. Authenticate using OAuth2 or service account
 	// 2. Create Drive service
 	// 3. Upload file with metadata
 	return map[string]interface{}{
-		"status":  "pending",
-		"message": "Upload request queued",
+		"status":    "pending",
+		"message":   fmt.Sprintf("Upload request queued for: %s", filePath),
+		"folder_id": folderID,
+		"name":      name,
 	}, nil
 }

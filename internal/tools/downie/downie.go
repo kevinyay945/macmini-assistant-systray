@@ -5,7 +5,13 @@ import (
 	"context"
 	"errors"
 	"fmt"
+
+	"github.com/kevinyay945/macmini-assistant-systray/internal/registry"
+	"github.com/kevinyay945/macmini-assistant-systray/internal/tools"
 )
+
+// Compile-time interface check
+var _ registry.Tool = (*Tool)(nil)
 
 // Sentinel errors for the Downie tool.
 var (
@@ -40,6 +46,32 @@ func (t *Tool) Description() string {
 	return "Download videos using Downie application"
 }
 
+// Parameters returns the tool parameter definitions for LLM integration.
+func (t *Tool) Parameters() []registry.ParameterDef {
+	return []registry.ParameterDef{
+		{
+			Name:        "url",
+			Type:        "string",
+			Required:    true,
+			Description: "The video URL to download",
+		},
+		{
+			Name:        "format",
+			Type:        "string",
+			Required:    false,
+			Description: "Output format (e.g., mp4, mkv)",
+			Default:     "mp4",
+		},
+		{
+			Name:        "resolution",
+			Type:        "string",
+			Required:    false,
+			Description: "Video resolution (e.g., 1080p, 720p)",
+			Default:     "1080p",
+		},
+	}
+}
+
 // Execute runs the Downie download with the given parameters.
 // Parameters:
 //   - url: The video URL to download (required)
@@ -57,15 +89,20 @@ func (t *Tool) Execute(ctx context.Context, params map[string]interface{}) (inte
 		return nil, ErrNotEnabled
 	}
 
-	url, ok := params["url"].(string)
-	if !ok || url == "" {
+	url, err := tools.GetRequiredString(params, "url")
+	if err != nil {
 		return nil, ErrMissingURL
 	}
+
+	format := tools.GetOptionalString(params, "format", "mp4")
+	resolution := tools.GetOptionalString(params, "resolution", "1080p")
 
 	// TODO: Implement Downie deep link execution
 	// Format: downie://XcallbackURL/open?url=<encoded_url>
 	return map[string]interface{}{
-		"status":  "pending",
-		"message": fmt.Sprintf("Download request queued for: %s", url),
+		"status":     "pending",
+		"message":    fmt.Sprintf("Download request queued for: %s", url),
+		"format":     format,
+		"resolution": resolution,
 	}, nil
 }

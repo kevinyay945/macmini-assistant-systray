@@ -17,7 +17,17 @@ type Registry struct {
 type Tool interface {
 	Name() string
 	Description() string
+	Parameters() []ParameterDef
 	Execute(ctx context.Context, params map[string]interface{}) (interface{}, error)
+}
+
+// ParameterDef describes a tool parameter for LLM integration.
+type ParameterDef struct {
+	Name        string `json:"name"`
+	Type        string `json:"type"` // "string", "int", "bool"
+	Required    bool   `json:"required"`
+	Description string `json:"description"`
+	Default     any    `json:"default,omitempty"`
 }
 
 // New creates a new tool registry.

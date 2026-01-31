@@ -745,6 +745,83 @@ check tools exist before installing these tools
 
 ---
 
+### Date: 2026-01-31 (Code Review Round 4 - Final Architecture Fixes)
+
+**Note**: Fourth round implementing all Gilfoyle-style code review recommendations:
+
+#### Architecture Improvements:
+
+1. **config/config.go** - Integrated Copilot Config into main configuration
+   - Added `CopilotConfig` struct with `api_key` and `timeout` fields
+   - Added `DefaultServerPort` constant (8080)
+   - Added `applyDefaults()` method for automatic default values
+   - Config now applies defaults before validation
+
+2. **registry/registry.go** - Added `ParameterDef` for LLM integration
+   - Added `Parameters()` method to `Tool` interface
+   - `ParameterDef` struct includes: Name, Type, Required, Description, Default
+   - Tools can now describe their parameters for Copilot SDK integration
+
+3. **handlers/discord/handler.go** & **handlers/line/handler.go**:
+   - Added compile-time interface check: `var _ handlers.Handler = (*Handler)(nil)`
+   - Added dependency injection for `*copilot.Client` and `*registry.Registry`
+   - Config struct now includes Copilot and Registry fields
+
+4. **tools/downie/downie.go** & **tools/gdrive/gdrive.go**:
+   - Implemented `Parameters()` method returning `[]registry.ParameterDef`
+   - Now uses `tools.GetRequiredString()` and `tools.GetOptionalString()` helpers
+   - Added compile-time interface check: `var _ registry.Tool = (*Tool)(nil)`
+   - Execute() response now includes all extracted parameters
+
+5. **updater/updater.go** - Uses `github.com/Masterminds/semver/v3`
+   - Replaced hand-rolled version parsing with industry-standard semver library
+   - Properly handles edge cases (pre-release, build metadata, etc.)
+   - Maintains backward compatibility with "dev"/"none" versions
+
+6. **cmd/orchestrator/main.go** - Uses structured Logger
+   - Replaced `fmt.Println` with `observability.Logger`
+   - Logs now include structured fields (version, commit, status)
+   - Configuration status logged with appropriate level (Info/Warn)
+
+#### New Tests Added:
+
+7. **config_test.go**:
+   - `TestConfig_Load_AppliesDefaults` - verifies default port and timeout
+   - `TestConfig_Load_WithCopilotConfig` - verifies Copilot config parsing
+
+8. **downie_test.go** & **gdrive_test.go**:
+   - `TestTool_Parameters` - verifies parameter definitions
+
+9. **registry_test.go**:
+   - Updated `mockTool` to implement `Parameters()` method
+
+#### Dependencies Added:
+- `github.com/Masterminds/semver/v3 v3.4.0` - Semantic versioning
+
+#### Test Summary:
+- Total test functions: **87** (was 83)
+- `make lint` - 0 issues
+- `make test` - All pass
+- `make build` - Successful
+
+#### Files Modified:
+- `internal/config/config.go`
+- `internal/config/config_test.go`
+- `internal/registry/registry.go`
+- `internal/registry/registry_test.go`
+- `internal/handlers/discord/handler.go`
+- `internal/handlers/line/handler.go`
+- `internal/tools/downie/downie.go`
+- `internal/tools/downie/downie_test.go`
+- `internal/tools/gdrive/gdrive.go`
+- `internal/tools/gdrive/gdrive_test.go`
+- `internal/updater/updater.go`
+- `cmd/orchestrator/main.go`
+- `test/fixtures/config.sample.yaml`
+- `go.mod` / `go.sum`
+
+---
+
 ### Date: ____
 
 **Note**:

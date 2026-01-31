@@ -39,12 +39,18 @@ func Load(path string) (*Config, error) {
 		return nil, fmt.Errorf("failed to parse config file: %w", err)
 	}
 
+	// Apply defaults
+	cfg.applyDefaults()
+
 	if err := cfg.Validate(); err != nil {
 		return nil, fmt.Errorf("invalid configuration: %w", err)
 	}
 
 	return &cfg, nil
 }
+
+// DefaultServerPort is the default HTTP server port.
+const DefaultServerPort = 8080
 
 // Config represents the application configuration loaded from config.yaml.
 type Config struct {
@@ -54,8 +60,26 @@ type Config struct {
 	LINE LINEConfig `yaml:"line"`
 	// Discord bot configuration
 	Discord DiscordConfig `yaml:"discord"`
+	// Copilot SDK configuration
+	Copilot CopilotConfig `yaml:"copilot"`
 	// Tool configurations
 	Tools ToolsConfig `yaml:"tools"`
+}
+
+// CopilotConfig holds GitHub Copilot SDK settings.
+type CopilotConfig struct {
+	APIKey  string `yaml:"api_key"`
+	Timeout int    `yaml:"timeout"` // Timeout in seconds, default 600 (10 minutes)
+}
+
+// applyDefaults sets default values for unset configuration options.
+func (c *Config) applyDefaults() {
+	if c.Server.Port == 0 {
+		c.Server.Port = DefaultServerPort
+	}
+	if c.Copilot.Timeout == 0 {
+		c.Copilot.Timeout = 600 // 10 minutes default
+	}
 }
 
 // Validate checks if the configuration is valid.

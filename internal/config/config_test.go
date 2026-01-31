@@ -193,3 +193,61 @@ func TestDefaultConfigPath(t *testing.T) {
 		t.Errorf("DefaultConfigPath() path should end with config.yaml, got %s", path)
 	}
 }
+
+func TestConfig_Load_AppliesDefaults(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "config.yaml")
+
+	// Minimal config without port or copilot timeout
+	content := `
+line:
+  channel_secret: ""
+  channel_token: ""
+`
+	if err := os.WriteFile(configPath, []byte(content), 0o644); err != nil {
+		t.Fatalf("Failed to create temp config file: %v", err)
+	}
+
+	cfg, err := config.Load(configPath)
+	if err != nil {
+		t.Fatalf("Load() returned error: %v", err)
+	}
+
+	// Should apply default port
+	if cfg.Server.Port != config.DefaultServerPort {
+		t.Errorf("Server.Port = %d, want default %d", cfg.Server.Port, config.DefaultServerPort)
+	}
+
+	// Should apply default copilot timeout
+	if cfg.Copilot.Timeout != 600 {
+		t.Errorf("Copilot.Timeout = %d, want default 600", cfg.Copilot.Timeout)
+	}
+}
+
+func TestConfig_Load_WithCopilotConfig(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "config.yaml")
+
+	content := `
+server:
+  port: 9000
+copilot:
+  api_key: "test-api-key"
+  timeout: 300
+`
+	if err := os.WriteFile(configPath, []byte(content), 0o644); err != nil {
+		t.Fatalf("Failed to create temp config file: %v", err)
+	}
+
+	cfg, err := config.Load(configPath)
+	if err != nil {
+		t.Fatalf("Load() returned error: %v", err)
+	}
+
+	if cfg.Copilot.APIKey != "test-api-key" {
+		t.Errorf("Copilot.APIKey = %q, want %q", cfg.Copilot.APIKey, "test-api-key")
+	}
+	if cfg.Copilot.Timeout != 300 {
+		t.Errorf("Copilot.Timeout = %d, want 300", cfg.Copilot.Timeout)
+	}
+}

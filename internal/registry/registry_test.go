@@ -23,6 +23,12 @@ func (m *mockTool) Description() string {
 	return m.description
 }
 
+func (m *mockTool) Parameters() []registry.ParameterDef {
+	return []registry.ParameterDef{
+		{Name: "test_param", Type: "string", Required: true, Description: "A test parameter"},
+	}
+}
+
 func (m *mockTool) Execute(_ context.Context, _ map[string]interface{}) (interface{}, error) {
 	return "executed", nil
 }

@@ -12,6 +12,10 @@ discord:
   token: ""
   guild_id: ""
 
+copilot:
+  api_key: ""
+  timeout: 600  # 10 minutes (in seconds)
+
 tools:
   downie:
     enabled: true
