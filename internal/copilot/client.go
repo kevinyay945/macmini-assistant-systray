@@ -350,7 +350,9 @@ func (c *Client) ProcessMessage(ctx context.Context, message string) (string, er
 	if err != nil {
 		return "", fmt.Errorf("failed to create Copilot session: %w", err)
 	}
-	defer session.Destroy()
+	defer func() {
+		_ = session.Destroy()
+	}()
 
 	// Collect response
 	responseCh := make(chan string, 1)
@@ -433,7 +435,9 @@ func (c *Client) ProcessMessageWithUserID(ctx context.Context, message, userID s
 	if err != nil {
 		return nil, fmt.Errorf("failed to create Copilot session: %w", err)
 	}
-	defer session.Destroy()
+	defer func() {
+		_ = session.Destroy()
+	}()
 
 	// Collect response and tool results
 	var response Response

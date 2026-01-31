@@ -88,6 +88,7 @@ func TestPipeline_FormatResponse_Nil(t *testing.T) {
 
 	if resp == nil {
 		t.Error("FormatResponse(nil) returned nil, want empty Response")
+		return
 	}
 	if resp.Text != "" {
 		t.Errorf("Text = %q, want empty string", resp.Text)
