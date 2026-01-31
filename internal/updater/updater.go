@@ -376,7 +376,10 @@ func (u *Updater) Restart() error {
 	}
 
 	// Start new process with the same arguments
-	cmd := exec.Command(execPath, os.Args[1:]...) // #nosec G204 - Using os.Executable() which returns the current process path
+	// NOTE: os.Args[1:] are the original command-line arguments passed to this process.
+	// Since this is a self-restart after update, we preserve the original invocation.
+	// The executable path is from os.Executable() which is the current process binary.
+	cmd := exec.Command(execPath, os.Args[1:]...) // #nosec G204 - Restarting self with original args
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	cmd.Stdin = os.Stdin
@@ -386,6 +389,9 @@ func (u *Updater) Restart() error {
 	}
 
 	// Exit current process - the new process will continue running
+	// NOTE: os.Exit terminates the process, so the return below is unreachable.
+	// We keep the return for Go compiler satisfaction.
 	os.Exit(0)
-	return nil // unreachable, but required for compilation
+
+	return nil //nolint:govet // unreachable but required for compilation
 }

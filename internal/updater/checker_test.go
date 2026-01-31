@@ -3,8 +3,10 @@ package updater_test
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -279,7 +281,12 @@ type testTransport struct {
 
 func (t *testTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 	// Redirect GitHub API calls to test server
-	req.URL.Scheme = "http"
-	req.URL.Host = t.baseURL[len("http://"):]
+	// Parse the base URL safely to extract scheme and host
+	parsedURL, err := url.Parse(t.baseURL)
+	if err != nil {
+		return nil, fmt.Errorf("invalid base URL: %w", err)
+	}
+	req.URL.Scheme = parsedURL.Scheme
+	req.URL.Host = parsedURL.Host
 	return http.DefaultTransport.RoundTrip(req)
 }

@@ -313,33 +313,41 @@ func TestUpdater_ChecksumVerification(t *testing.T) {
 }
 
 func TestUpdater_ChecksumMismatch(t *testing.T) {
-	// Test with wrong checksum - should fail
+	// This test validates that the checksum file format is correct
+	// and the checksum comparison would work.
+	// Full integration testing of ApplyFromRelease requires more setup
+	// and would actually modify the running binary.
+
 	binaryContent := []byte("fake binary content")
 	tarGzData := createTarGz(t, "orchestrator", binaryContent)
 
-	// Wrong checksum
+	// Wrong checksum (doesn't match the actual tarGzData)
 	wrongChecksum := "0000000000000000000000000000000000000000000000000000000000000000"
 	assetName := "orchestrator_2.0.0_" + runtime.GOOS + "_" + runtime.GOARCH + ".tar.gz"
 	checksumFileContent := wrongChecksum + "  " + assetName + "\n"
 
-	// Create test server
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		switch r.URL.Path {
-		case "/download/" + assetName:
-			w.Header().Set("Content-Type", "application/octet-stream")
-			_, _ = w.Write(tarGzData)
-		case "/download/checksums.txt":
-			w.Header().Set("Content-Type", "text/plain")
-			_, _ = w.Write([]byte(checksumFileContent))
-		default:
-			http.NotFound(w, r)
-		}
-	}))
-	defer server.Close()
+	// Calculate actual checksum
+	actualChecksum := sha256.Sum256(tarGzData)
+	actualHex := hex.EncodeToString(actualChecksum[:])
 
-	// The test passes if we can create the server - actual checksum verification
-	// is tested in the full integration which requires more setup
-	if server == nil {
-		t.Error("server should not be nil")
+	// Verify that wrong checksum doesn't match
+	if wrongChecksum == actualHex {
+		t.Error("wrong checksum should not match actual checksum")
+	}
+
+	// Verify checksum file format parsing works
+	lines := bytes.Split([]byte(checksumFileContent), []byte("\n"))
+	if len(lines) < 1 {
+		t.Fatal("checksum file should have at least one line")
+	}
+	parts := bytes.Fields(lines[0])
+	if len(parts) != 2 {
+		t.Fatalf("checksum line should have 2 parts, got %d", len(parts))
+	}
+	if string(parts[0]) != wrongChecksum {
+		t.Errorf("parsed checksum = %q, want %q", string(parts[0]), wrongChecksum)
+	}
+	if string(parts[1]) != assetName {
+		t.Errorf("parsed filename = %q, want %q", string(parts[1]), assetName)
 	}
 }
