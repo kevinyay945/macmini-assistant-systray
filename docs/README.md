@@ -9,8 +9,24 @@ Welcome to the MacMini Assistant Systray Orchestrator documentation!
 | Document | Description | Audience |
 |----------|-------------|----------|
 | [PRD.md](./PRD.md) | **Product Requirements Document** - Complete functional and non-functional requirements, user stories, and technical specifications | Everyone |
-| [DEVELOPMENT_PLAN.md](./DEVELOPMENT_PLAN.md) | **Development Plan** - Phased implementation roadmap with detailed tasks, timelines, and testing strategy | Developers |
+| [DEVELOPMENT_PLAN.md](./DEVELOPMENT_PLAN.md) | **Development Plan** - Overview, milestones, and workflow | Developers |
 | [DISCUSSION_SUMMARY.md](./DISCUSSION_SUMMARY.md) | **Discussion Summary** - Key design decisions, open questions answered, and recommendations | Team leads & Stakeholders |
+
+### Phase Documents
+
+Detailed implementation tasks for each phase (add your notes and details here):
+
+| Phase | Document | Focus |
+|-------|----------|-------|
+| Phase 0 | [phase-0-bootstrap.md](./phases/phase-0-bootstrap.md) | Project Bootstrap (Week 1) |
+| Phase 1 | [phase-1-foundation.md](./phases/phase-1-foundation.md) | Core Foundation (Weeks 2-3) |
+| Phase 2 | [phase-2-messaging.md](./phases/phase-2-messaging.md) | Messaging Platforms (Weeks 4-5) |
+| Phase 3 | [phase-3-copilot.md](./phases/phase-3-copilot.md) | Copilot SDK (Week 6) |
+| Phase 4 | [phase-4-tools.md](./phases/phase-4-tools.md) | Tool Implementation (Weeks 7-8) |
+| Phase 5 | [phase-5-systray.md](./phases/phase-5-systray.md) | System Tray (Week 9) |
+| Phase 6 | [phase-6-updater.md](./phases/phase-6-updater.md) | Auto-updater (Week 10) |
+| Phase 7 | [phase-7-integration.md](./phases/phase-7-integration.md) | Integration Testing (Week 11) |
+| Phase 8 | [phase-8-release.md](./phases/phase-8-release.md) | Release (Week 12) |
 
 ### Getting Started
 
@@ -35,8 +51,9 @@ Welcome to the MacMini Assistant Systray Orchestrator documentation!
 - [User Stories](./PRD.md#8-user-stories) - Use cases and acceptance criteria
 
 ### Development
-- [Project Phases](./DEVELOPMENT_PLAN.md#project-phases) - 8 phases over 12 weeks
-- [Testing Strategy](./DEVELOPMENT_PLAN.md#testing-strategy-summary) - Unit, integration, and local tests
+- [Phase Documents](./phases/) - Detailed tasks for each phase
+- [Project Phases Overview](./DEVELOPMENT_PLAN.md#phase-documents) - 8 phases over 12 weeks
+- [Testing Commands](./DEVELOPMENT_PLAN.md#testing-commands) - Unit, integration, and local tests
 - [Project Structure](./DEVELOPMENT_PLAN.md#project-structure) - Folder organization
 
 ### Decisions
@@ -52,6 +69,7 @@ Welcome to the MacMini Assistant Systray Orchestrator documentation!
 | PRD.md | 1.0 | 2026-01-31 | ✅ Draft Complete |
 | DEVELOPMENT_PLAN.md | 1.0 | 2026-01-31 | ✅ Draft Complete |
 | DISCUSSION_SUMMARY.md | 1.0 | 2026-01-31 | ✅ Approved |
+| phases/ (9 files) | 1.0 | 2026-01-31 | ✅ Draft Complete |
 
 ## 🚀 Next Steps
 
@@ -76,7 +94,8 @@ When adding new documentation:
 
 1. **Location**:
    - Technical specs → [PRD.md](./PRD.md)
-   - Implementation guides → [DEVELOPMENT_PLAN.md](./DEVELOPMENT_PLAN.md)
+   - Implementation overview → [DEVELOPMENT_PLAN.md](./DEVELOPMENT_PLAN.md)
+   - Phase details → [phases/](./phases/) folder
    - Design decisions → [DISCUSSION_SUMMARY.md](./DISCUSSION_SUMMARY.md)
    - ADRs → `docs/adr/NNN-title.md`
 
@@ -102,7 +121,7 @@ When adding new documentation:
   → [PRD.md - Technical Architecture](./PRD.md#4-technical-architecture)
 
 - **What am I working on this sprint?**
-  → [DEVELOPMENT_PLAN.md - Project Phases](./DEVELOPMENT_PLAN.md#project-phases)
+  → [phases/ folder](./phases/) - Detailed phase documents
 
 - **Why did we choose technology X?**
   → [DISCUSSION_SUMMARY.md - Technology Recommendations](./DISCUSSION_SUMMARY.md#technology-recommendations)
