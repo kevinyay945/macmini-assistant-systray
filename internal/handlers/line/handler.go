@@ -25,12 +25,32 @@ func New(cfg Config) *Handler {
 	}
 }
 
+// Start begins the LINE webhook handler.
+// Note: LINE uses webhooks, so this is a no-op. The actual HTTP server
+// should be started separately and route requests to HandleWebhook.
+func (h *Handler) Start() error {
+	// LINE uses webhooks, so no persistent connection needed
+	return nil
+}
+
+// Stop gracefully shuts down the LINE handler.
+func (h *Handler) Stop() error {
+	// No cleanup needed for webhook-based handler
+	return nil
+}
+
 // HandleWebhook processes incoming LINE webhook requests.
 // This is designed to be used with net/http or any HTTP framework.
 func (h *Handler) HandleWebhook(w http.ResponseWriter, r *http.Request) {
 	// Always close the request body to prevent connection leaks
 	if r.Body != nil {
 		defer r.Body.Close()
+	}
+
+	// LINE webhooks only accept POST requests
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
 	}
 
 	// TODO: Implement LINE webhook handling

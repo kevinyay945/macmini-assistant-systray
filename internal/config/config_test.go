@@ -83,6 +83,20 @@ func TestConfig_Validate_DiscordRequiresGuildID(t *testing.T) {
 	}
 }
 
+func TestConfig_Validate_DiscordRequiresToken(t *testing.T) {
+	cfg := &config.Config{
+		Server: config.ServerConfig{Port: 8080},
+		Discord: config.DiscordConfig{
+			Token:   "",
+			GuildID: "123456789",
+		},
+	}
+
+	if err := cfg.Validate(); err == nil {
+		t.Error("Validate() should return error when Discord guild_id is set but token is missing")
+	}
+}
+
 func TestConfig_Validate_GoogleDriveRequiresCredentials(t *testing.T) {
 	cfg := &config.Config{
 		Server: config.ServerConfig{Port: 8080},

@@ -56,6 +56,32 @@ func TestRegistry_GetNotFound(t *testing.T) {
 	}
 }
 
+func TestRegistry_Unregister(t *testing.T) {
+	r := registry.New()
+	r.Register(&mockTool{name: "test_tool", description: "A test tool"})
+
+	// Unregister existing tool
+	removed := r.Unregister("test_tool")
+	if !removed {
+		t.Error("Unregister() should return true for existing tool")
+	}
+
+	// Verify it's gone
+	_, found := r.Get("test_tool")
+	if found {
+		t.Error("Get() should return false after Unregister()")
+	}
+}
+
+func TestRegistry_Unregister_NotFound(t *testing.T) {
+	r := registry.New()
+
+	removed := r.Unregister("nonexistent")
+	if removed {
+		t.Error("Unregister() should return false for nonexistent tool")
+	}
+}
+
 func TestRegistry_List(t *testing.T) {
 	r := registry.New()
 	r.Register(&mockTool{name: "tool1", description: "Tool 1"})

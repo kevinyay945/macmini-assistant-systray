@@ -42,6 +42,18 @@ func (r *Registry) Get(name string) (Tool, bool) {
 	return tool, ok
 }
 
+// Unregister removes a tool from the registry.
+// Returns true if the tool was found and removed, false otherwise.
+func (r *Registry) Unregister(name string) bool {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	_, exists := r.tools[name]
+	if exists {
+		delete(r.tools, name)
+	}
+	return exists
+}
+
 // List returns all registered tool names in sorted order for deterministic output.
 func (r *Registry) List() []string {
 	r.mu.RLock()

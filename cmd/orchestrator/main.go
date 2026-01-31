@@ -8,6 +8,8 @@ import (
 	"syscall"
 
 	"github.com/spf13/cobra"
+
+	"github.com/kevinyay945/macmini-assistant-systray/internal/config"
 )
 
 // Build-time variables (set by goreleaser)
@@ -64,7 +66,18 @@ messaging platforms, powered by GitHub Copilot SDK.`,
 func runOrchestrator(ctx context.Context) {
 	fmt.Println("MacMini Assistant Orchestrator")
 	fmt.Println("Status: Phase 0 Bootstrap - Under Development")
-	fmt.Println("")
+	fmt.Println()
+
+	// Attempt to load configuration
+	cfg, err := config.Load("")
+	if err != nil {
+		fmt.Printf("Note: Could not load config: %v\n", err)
+		fmt.Println("Create ~/.macmini-assistant/config.yaml to configure the application.")
+	} else {
+		fmt.Printf("Configuration loaded successfully (server port: %d)\n", cfg.Server.Port)
+	}
+
+	fmt.Println()
 	fmt.Println("Use --help to see available commands.")
 	fmt.Println("Press Ctrl+C to exit.")
 

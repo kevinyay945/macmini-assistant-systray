@@ -663,6 +663,88 @@ check tools exist before installing these tools
 
 ---
 
+### Date: 2026-01-31 (Code Review Round 3 - Comprehensive Fixes)
+
+**Note**: Third round of comprehensive code quality improvements addressing all remaining Gilfoyle-style code review feedback:
+
+#### New Files Created:
+
+1. **internal/copilot/client_test.go** - 6 tests for Copilot client
+   - Tests for `New()`, `ProcessMessage()` with various scenarios
+   - Context cancellation and deadline tests
+
+2. **internal/handlers/handler.go** - Common Handler interface
+   - Defines `Handler` interface with `Start()` and `Stop()` methods
+   - Both LINE and Discord handlers implement this interface
+
+3. **internal/handlers/discord/handler_test.go** - 4 tests for Discord handler
+   - Tests for `New()`, `Start()`, `Stop()`
+
+4. **internal/handlers/line/handler_test.go** - 7 tests for LINE handler
+   - Tests for `New()`, HTTP method validation, `Start()`, `Stop()`
+   - Verifies only POST is accepted (GET, PUT, DELETE, PATCH rejected)
+
+5. **internal/systray/systray_test.go** - 6 tests for systray
+   - Tests for `New()`, `WithOnReady()`, `WithOnExit()`, `Run()`, `Quit()`
+
+6. **internal/tools/params.go** - Shared parameter helpers
+   - `GetRequiredString()` - extracts required string params
+   - `GetOptionalString()` - extracts optional string with default
+   - `GetOptionalInt()` - extracts optional int (handles float64 from JSON)
+   - `GetOptionalBool()` - extracts optional bool with default
+
+7. **internal/tools/params_test.go** - 12 tests for params helpers
+   - Comprehensive tests for all helper functions
+
+8. **internal/updater/updater_test.go** - 9 tests for updater
+   - Tests for `New()`, `CurrentVersion()`, `IsNewerVersion()`
+   - 12 version comparison scenarios including semver edge cases
+   - Context cancellation tests
+
+#### Code Fixes:
+
+9. **internal/copilot/client.go**:
+   - Added `ErrAPIKeyNotConfigured` sentinel error
+   - Context check moved to FIRST operation (fail fast pattern)
+
+10. **internal/config/config.go**:
+    - Added Discord reverse validation (GuildID→Token)
+    - Now validates both directions symmetrically
+
+11. **internal/config/config_test.go**:
+    - Added `TestConfig_Validate_DiscordRequiresToken` test
+
+12. **internal/registry/registry.go**:
+    - Added `Unregister(name string) bool` method
+    - Allows removing tools from registry
+
+13. **internal/registry/registry_test.go**:
+    - Added `TestRegistry_Unregister` and `TestRegistry_Unregister_NotFound`
+
+14. **internal/handlers/line/handler.go**:
+    - Added HTTP method validation (only POST allowed)
+    - Added `Start()` and `Stop()` methods for Handler interface
+    - Returns 405 Method Not Allowed for non-POST requests
+
+15. **internal/updater/updater.go**:
+    - Added `CurrentVersion()` getter
+    - Added `IsNewerVersion(newVersion string) bool` for semver comparison
+    - Implemented pure Go version parsing without external dependencies
+    - Handles versions with/without "v" prefix
+
+16. **cmd/orchestrator/main.go**:
+    - Added config loading attempt on startup
+    - Shows config status or helpful error message
+    - Fixed import grouping (goimports compliance)
+
+#### Test Summary:
+- Total test functions: **83** (was 34)
+- `make lint` - 0 issues
+- `make test` - All pass
+- `make build` - Successful
+
+---
+
 ### Date: ____
 
 **Note**:

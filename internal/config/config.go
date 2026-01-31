@@ -77,6 +77,9 @@ func (c *Config) Validate() error {
 	if c.Discord.Token != "" && c.Discord.GuildID == "" {
 		errs = append(errs, errors.New("discord.guild_id is required when discord.token is set"))
 	}
+	if c.Discord.GuildID != "" && c.Discord.Token == "" {
+		errs = append(errs, errors.New("discord.token is required when discord.guild_id is set"))
+	}
 
 	if c.Tools.GoogleDrive.Enabled {
 		if c.Tools.GoogleDrive.CredentialsPath == "" && c.Tools.GoogleDrive.ServiceAccountPath == "" {

@@ -3,6 +3,7 @@ package updater
 
 import (
 	"context"
+	"strings"
 )
 
 // Updater handles application self-updates.
@@ -35,6 +36,61 @@ type UpdateInfo struct {
 	ReleaseURL  string
 	DownloadURL string
 	Changelog   string
+}
+
+// CurrentVersion returns the currently running version.
+func (u *Updater) CurrentVersion() string {
+	return u.currentVersion
+}
+
+// IsNewerVersion compares two semantic versions and returns true if newVersion is newer.
+// Versions are expected in the format "v1.2.3" or "1.2.3".
+func (u *Updater) IsNewerVersion(newVersion string) bool {
+	current := normalizeVersion(u.currentVersion)
+	new := normalizeVersion(newVersion)
+
+	// Simple semver comparison (major.minor.patch)
+	currentParts := parseVersion(current)
+	newParts := parseVersion(new)
+
+	for i := 0; i < 3; i++ {
+		if newParts[i] > currentParts[i] {
+			return true
+		}
+		if newParts[i] < currentParts[i] {
+			return false
+		}
+	}
+	return false
+}
+
+// normalizeVersion ensures the version has a "v" prefix stripped for comparison.
+func normalizeVersion(v string) string {
+	return strings.TrimPrefix(v, "v")
+}
+
+// parseVersion splits a version string into [major, minor, patch] integers.
+// Returns [0, 0, 0] for invalid versions.
+func parseVersion(v string) [3]int {
+	parts := strings.Split(v, ".")
+	var result [3]int
+	for i := 0; i < 3 && i < len(parts); i++ {
+		// Parse each part, ignoring any suffix (e.g., "1-beta" -> 1)
+		numStr := parts[i]
+		if idx := strings.IndexAny(numStr, "-+"); idx != -1 {
+			numStr = numStr[:idx]
+		}
+		var num int
+		for _, c := range numStr {
+			if c >= '0' && c <= '9' {
+				num = num*10 + int(c-'0')
+			} else {
+				break
+			}
+		}
+		result[i] = num
+	}
+	return result
 }
 
 // CheckForUpdate checks if a new version is available.

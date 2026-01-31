@@ -6,6 +6,11 @@ import (
 	"errors"
 )
 
+// Sentinel errors for the Copilot client.
+var (
+	ErrAPIKeyNotConfigured = errors.New("copilot API key not configured")
+)
+
 // Client handles communication with the Copilot SDK.
 type Client struct {
 	apiKey string
@@ -26,15 +31,15 @@ func New(cfg Config) *Client {
 // ProcessMessage sends a message to Copilot and returns the response.
 // The context is used to enforce timeouts (10-minute hard limit per PRD).
 func (c *Client) ProcessMessage(ctx context.Context, message string) (string, error) {
-	if c.apiKey == "" {
-		return "", errors.New("copilot API key not configured")
-	}
-
-	// Check context cancellation
+	// Context check should be first to fail fast
 	select {
 	case <-ctx.Done():
 		return "", ctx.Err()
 	default:
+	}
+
+	if c.apiKey == "" {
+		return "", ErrAPIKeyNotConfigured
 	}
 
 	// TODO: Implement Copilot SDK integration
