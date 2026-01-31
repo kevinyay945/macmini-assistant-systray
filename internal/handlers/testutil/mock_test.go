@@ -47,7 +47,7 @@ func TestMockRouter_Route_WithError(t *testing.T) {
 
 	_, err := m.Route(context.Background(), &handlers.Message{})
 
-	if err != expectedErr {
+	if !errors.Is(err, expectedErr) {
 		t.Errorf("Route() error = %v, want %v", err, expectedErr)
 	}
 }
@@ -110,7 +110,7 @@ func TestMockRouter_Reset_PreservesConfig(t *testing.T) {
 	if m.Response != expectedResp {
 		t.Error("Reset() should preserve Response")
 	}
-	if m.Err != expectedErr {
+	if !errors.Is(m.Err, expectedErr) {
 		t.Error("Reset() should preserve Err")
 	}
 }

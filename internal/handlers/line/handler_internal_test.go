@@ -111,7 +111,7 @@ func TestParseMessage_EmptyText(t *testing.T) {
 		Message:    webhook.TextMessageContent{Id: "msg-123", Text: ""},
 	}
 	_, err := h.ParseMessage(event)
-	if err != ErrEmptyMessage {
+	if !errors.Is(err, ErrEmptyMessage) {
 		t.Errorf("ParseMessage(empty) error = %v, want ErrEmptyMessage", err)
 	}
 }
