@@ -405,6 +405,14 @@ require (
 11. **Test Timing Constants**: Replaced magic numbers in timeout tests with named constants (`testShortTimeout`, `testLongOperation`) for reliability across different environments
 12. **Enhanced Test Coverage**: Added tests for number type validation, allowed values validation, and MultiReporter timeout configuration
 
+### Code Review Fixes (2026-01-31 - Round 2)
+
+**Performance:**
+13. **Config Regex Optimization**: Moved `envVarPattern` to package-level variable in `config.go` to avoid regex recompilation on every `expandEnvVars()` call. This mirrors the similar fix already applied to `logger.go` for sensitive data filtering.
+
+**Safety:**
+14. **GetToolConfig Returns Copy**: Changed `Config.GetToolConfig()` to return `(ToolConfig, bool)` instead of `(*ToolConfig, bool)`. Returning a pointer to a slice element is dangerous because if the slice is reallocated (e.g., during config reload), the pointer becomes dangling. Returning a copy is safer and prevents accidental mutation of the original config.
+
 ---
 
 ## Time Tracking

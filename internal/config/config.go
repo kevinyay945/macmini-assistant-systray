@@ -15,6 +15,10 @@ import (
 // DefaultServerPort is the default HTTP server port.
 const DefaultServerPort = 8080
 
+// envVarPattern is a pre-compiled regex for environment variable substitution.
+// Defined at package level to avoid recompilation on every call to expandEnvVars.
+var envVarPattern = regexp.MustCompile(`\$\{([^}]+)\}`)
+
 // DefaultConfigPath returns the default configuration file path.
 func DefaultConfigPath() (string, error) {
 	homeDir, err := os.UserHomeDir()
@@ -70,8 +74,7 @@ func Load(path string) (*Config, error) {
 // Supports default values using the syntax ${VAR:-default_value}.
 // NOTE: Nested variable substitution (e.g., ${VAR1:-${VAR2}}) is NOT supported.
 func expandEnvVars(content string) string {
-	re := regexp.MustCompile(`\$\{([^}]+)\}`)
-	return re.ReplaceAllStringFunc(content, func(match string) string {
+	return envVarPattern.ReplaceAllStringFunc(content, func(match string) string {
 		inner := strings.TrimPrefix(strings.TrimSuffix(match, "}"), "${")
 		// Support ${VAR:-default} syntax
 		if idx := strings.Index(inner, ":-"); idx != -1 {
@@ -323,14 +326,16 @@ func (c *Config) Validate() error {
 	return errors.Join(errs...)
 }
 
-// GetToolConfig returns the configuration for a specific tool by name.
-func (c *Config) GetToolConfig(name string) (*ToolConfig, bool) {
-	for i := range c.Tools {
-		if c.Tools[i].Name == name {
-			return &c.Tools[i], true
+// GetToolConfig returns a copy of the configuration for a specific tool by name.
+// Returns a copy to prevent callers from accidentally modifying the original config
+// or holding a dangling pointer if the config's Tools slice is reallocated.
+func (c *Config) GetToolConfig(name string) (ToolConfig, bool) {
+	for _, tool := range c.Tools {
+		if tool.Name == name {
+			return tool, true
 		}
 	}
-	return nil, false
+	return ToolConfig{}, false
 }
 
 // GetEnabledTools returns only the enabled tool configurations.
