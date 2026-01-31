@@ -2,6 +2,7 @@ package line
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -9,6 +10,9 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/line/line-bot-sdk-go/v8/linebot/webhook"
+
+	"github.com/kevinyay945/macmini-assistant-systray/internal/handlers"
+	"github.com/kevinyay945/macmini-assistant-systray/internal/handlers/testutil"
 )
 
 func TestTruncateMessage(t *testing.T) {
@@ -255,12 +259,93 @@ func TestHandler_ProcessEvent_MessageEvent_EmptyContent(t *testing.T) {
 	h.processEvent(context.Background(), event) // Should not panic, just log
 }
 
+func TestHandler_ProcessEvent_MessageEvent_WithRouter(t *testing.T) {
+	mockRouter := &testutil.MockRouter{
+		Response: &handlers.Response{Text: "processed"},
+	}
+	h := New(Config{Router: mockRouter})
+	event := webhook.MessageEvent{
+		ReplyToken: "token",
+		Source:     webhook.UserSource{UserId: "U123"},
+		Message:    webhook.TextMessageContent{Id: "msg-1", Text: "hello"},
+	}
+	h.processEvent(context.Background(), event)
+	if !mockRouter.Called {
+		t.Error("Router should be called for message event")
+	}
+}
+
+func TestHandler_ProcessEvent_MessageEvent_RouterError(t *testing.T) {
+	mockRouter := &testutil.MockRouter{
+		Err: errors.New("routing failed"),
+	}
+	h := New(Config{Router: mockRouter})
+	event := webhook.MessageEvent{
+		ReplyToken: "token",
+		Source:     webhook.UserSource{UserId: "U123"},
+		Message:    webhook.TextMessageContent{Id: "msg-1", Text: "hello"},
+	}
+	h.processEvent(context.Background(), event) // Should not panic
+	if !mockRouter.Called {
+		t.Error("Router should be called even when error occurs")
+	}
+}
+
 func TestHandler_ProcessEvent_FollowEvent(t *testing.T) {
 	h := New(Config{})
 	event := webhook.FollowEvent{
-		Source: webhook.UserSource{UserId: "U123"},
+		ReplyToken: "token",
+		Source:     webhook.UserSource{UserId: "U123"},
 	}
 	h.processEvent(context.Background(), event) // Should not panic
+}
+
+func TestHandler_HandleMessageEvent_RouteSuccessWithResponse(t *testing.T) {
+	mockRouter := &testutil.MockRouter{
+		Response: &handlers.Response{Text: "response text"},
+	}
+	h := New(Config{Router: mockRouter})
+	event := webhook.MessageEvent{
+		ReplyToken: "token",
+		Source:     webhook.UserSource{UserId: "U123"},
+		Message:    webhook.TextMessageContent{Id: "msg-1", Text: "test"},
+	}
+	h.handleMessageEvent(context.Background(), event)
+	if !mockRouter.Called {
+		t.Error("Router should be called")
+	}
+}
+
+func TestHandler_HandleMessageEvent_RouteSuccessEmptyResponse(t *testing.T) {
+	mockRouter := &testutil.MockRouter{
+		Response: &handlers.Response{Text: ""},
+	}
+	h := New(Config{Router: mockRouter})
+	event := webhook.MessageEvent{
+		ReplyToken: "token",
+		Source:     webhook.UserSource{UserId: "U123"},
+		Message:    webhook.TextMessageContent{Id: "msg-1", Text: "test"},
+	}
+	h.handleMessageEvent(context.Background(), event)
+	if !mockRouter.Called {
+		t.Error("Router should be called")
+	}
+}
+
+func TestHandler_HandleMessageEvent_RouteSuccessNilResponse(t *testing.T) {
+	mockRouter := &testutil.MockRouter{
+		Response: nil,
+	}
+	h := New(Config{Router: mockRouter})
+	event := webhook.MessageEvent{
+		ReplyToken: "token",
+		Source:     webhook.UserSource{UserId: "U123"},
+		Message:    webhook.TextMessageContent{Id: "msg-1", Text: "test"},
+	}
+	h.handleMessageEvent(context.Background(), event)
+	if !mockRouter.Called {
+		t.Error("Router should be called")
+	}
 }
 
 func TestHandler_ProcessEvent_UnfollowEvent(t *testing.T) {

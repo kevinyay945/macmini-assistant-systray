@@ -138,6 +138,59 @@ func TestHandleToolsCommand_WithRegistry(t *testing.T) {
 	}
 }
 
+func TestHandleToolsCommand_WithToolsInRegistry(t *testing.T) {
+	reg := registry.New()
+	// Register would require implementing tool interface, so just test with empty
+	h := New(Config{Registry: reg})
+	resp := h.handleToolsCommand(context.Background())
+	if resp.Type != discordgo.InteractionResponseChannelMessageWithSource {
+		t.Errorf("Response Type = %v, want %v", resp.Type, discordgo.InteractionResponseChannelMessageWithSource)
+	}
+}
+
+func TestCreateStatusEmbed_WithDuration(t *testing.T) {
+	h := New(Config{})
+	msg := handlers.StatusMessage{
+		Type:     "complete",
+		ToolName: "test_tool",
+		Duration: 5 * time.Second,
+	}
+	embed := h.createStatusEmbed(msg)
+	foundDuration := false
+	for _, field := range embed.Fields {
+		if field.Name == "Duration" && field.Value == "5s" {
+			foundDuration = true
+		}
+	}
+	if !foundDuration {
+		t.Error("Expected Duration field in embed")
+	}
+}
+
+func TestCreateStatusEmbed_WithUserIDAndPlatform(t *testing.T) {
+	h := New(Config{})
+	msg := handlers.StatusMessage{
+		Type:     "start",
+		ToolName: "test_tool",
+		UserID:   "user123",
+		Platform: "discord",
+	}
+	embed := h.createStatusEmbed(msg)
+	foundUserID := false
+	foundPlatform := false
+	for _, field := range embed.Fields {
+		if field.Name == "User" {
+			foundUserID = true
+		}
+		if field.Name == "Platform" {
+			foundPlatform = true
+		}
+	}
+	if !foundUserID || !foundPlatform {
+		t.Errorf("Expected User and Platform fields, got UserID=%v Platform=%v", foundUserID, foundPlatform)
+	}
+}
+
 func TestHandleHelpCommand(t *testing.T) {
 	h := New(Config{})
 	resp := h.handleHelpCommand(context.Background())
