@@ -390,7 +390,7 @@ run:
 # Initialize development environment
 init:
 	@echo "Installing development dependencies..."
-	@command -v golangci-lint > /dev/null 2>&1 || go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
+	@command -v golangci-lint > /dev/null 2>&1 || go install github.com/golangci/golangci-lint/cmd/golangci-lint/v2@latest
 	@command -v goreleaser > /dev/null 2>&1 || go install github.com/goreleaser/goreleaser@latest
 	@command -v pre-commit > /dev/null 2>&1 || brew install pre-commit
 	@pre-commit install
@@ -552,7 +552,7 @@ make test-local
 brew install go
 
 # golangci-lint
-go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
+go install github.com/golangci/golangci-lint/cmd/golangci-lint/v2@latest
 
 # goreleaser
 go install github.com/goreleaser/goreleaser@latest
