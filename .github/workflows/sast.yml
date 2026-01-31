@@ -73,7 +73,15 @@ jobs:
         id: vulncheck
         run: |
           go install golang.org/x/vuln/cmd/govulncheck@latest
-          govulncheck ./...
+          set +e
+          output=$(govulncheck ./... 2>&1)
+          exit_code=$?
+          echo "$output"
+          # Store last 50 lines for PR comment
+          echo "vulncheck_output<<EOF" >> $GITHUB_OUTPUT
+          echo "$output" | tail -50 >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+          exit $exit_code
 
       - name: Comment PR on failure
         if: failure() && github.event_name == 'pull_request'
@@ -84,3 +92,11 @@ jobs:
             ## ⚠️ Vulnerability Found (govulncheck)
 
             govulncheck found potential vulnerabilities in dependencies. Please check the [workflow run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}) for details.
+
+            <details>
+            <summary>Vulnerability Check Output (last 50 lines)</summary>
+
+            ```
+            ${{ steps.vulncheck.outputs.vulncheck_output || 'See workflow logs for details' }}
+            ```
+            </details>

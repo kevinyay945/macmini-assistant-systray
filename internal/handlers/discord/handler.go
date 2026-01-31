@@ -214,7 +214,7 @@ func (h *Handler) handleMessageCreate(s *discordgo.Session, m *discordgo.Message
 	}
 
 	// Create platform-agnostic message
-	msg := handlers.NewMessage(m.ID, m.Author.ID, "discord", content, replyFunc)
+	msg := handlers.NewMessage(m.ID, m.Author.ID, handlers.PlatformDiscord, content, replyFunc)
 	msg.Metadata["channel_id"] = m.ChannelID
 	msg.Metadata["guild_id"] = m.GuildID
 	msg.Metadata["author_username"] = m.Author.Username

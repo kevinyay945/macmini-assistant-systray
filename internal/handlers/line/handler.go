@@ -238,7 +238,7 @@ func (h *Handler) handleMessageEvent(ctx context.Context, e webhook.MessageEvent
 	}
 
 	// Create platform-agnostic message
-	msg := handlers.NewMessage(messageID, userID, "line", content, replyFunc)
+	msg := handlers.NewMessage(messageID, userID, handlers.PlatformLINE, content, replyFunc)
 	msg.Metadata["reply_token"] = e.ReplyToken
 
 	// Route message if router is configured
@@ -422,7 +422,7 @@ func (h *Handler) ParseMessage(e webhook.MessageEvent) (*handlers.Message, error
 		return h.sendReply(ctx, e.ReplyToken, response)
 	}
 
-	msg := handlers.NewMessage(messageID, userID, "line", content, replyFunc)
+	msg := handlers.NewMessage(messageID, userID, handlers.PlatformLINE, content, replyFunc)
 	msg.Metadata["reply_token"] = e.ReplyToken
 
 	return msg, nil
