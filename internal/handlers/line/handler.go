@@ -20,9 +20,6 @@ import (
 // Compile-time interface check
 var _ handlers.Handler = (*Handler)(nil)
 
-// ErrInvalidSignature is returned when the LINE webhook signature is invalid.
-var ErrInvalidSignature = errors.New("invalid LINE signature")
-
 // ErrEmptyMessage is returned when a message event contains no content.
 var ErrEmptyMessage = errors.New("empty message content")
 
@@ -234,7 +231,7 @@ func (h *Handler) handleMessageEvent(ctx context.Context, e webhook.MessageEvent
 		resp, err := h.router.Route(ctx, msg)
 		if err != nil {
 			h.logger.Error(ctx, "failed to route message", "error", err)
-			_ = h.sendReply(ctx, e.ReplyToken, FormatErrorMessage(err))
+			_ = h.sendReply(ctx, e.ReplyToken, formatErrorMessage(err))
 			return
 		}
 		if resp != nil && resp.Text != "" {
@@ -359,9 +356,9 @@ func (h *Handler) PushMessage(ctx context.Context, userID string, message string
 	return nil
 }
 
-// FormatErrorMessage formats an error into a user-friendly message.
+// formatErrorMessage formats an error into a user-friendly message.
 // Deprecated: Use handlers.FormatUserFriendlyError instead for consistency.
-func FormatErrorMessage(err error) string {
+func formatErrorMessage(err error) string {
 	return handlers.FormatUserFriendlyError(err)
 }
 

@@ -19,6 +19,53 @@ func TestPlatformConstants(t *testing.T) {
 	}
 }
 
+// mockHandler implements handlers.Handler for interface verification.
+type mockHandler struct {
+	started bool
+}
+
+func (m *mockHandler) Start() error {
+	m.started = true
+	return nil
+}
+
+func (m *mockHandler) Stop() error {
+	m.started = false
+	return nil
+}
+
+// mockStatusReporter implements handlers.StatusReporter for interface verification.
+type mockStatusReporter struct {
+	lastStatus handlers.StatusMessage
+}
+
+func (m *mockStatusReporter) PostStatus(_ context.Context, msg handlers.StatusMessage) error {
+	m.lastStatus = msg
+	return nil
+}
+
+func TestHandler_InterfaceContract(t *testing.T) {
+	// Verify Handler interface contract
+	var h handlers.Handler = &mockHandler{}
+
+	if err := h.Start(); err != nil {
+		t.Errorf("Start() returned error: %v", err)
+	}
+	if err := h.Stop(); err != nil {
+		t.Errorf("Stop() returned error: %v", err)
+	}
+}
+
+func TestStatusReporter_InterfaceContract(t *testing.T) {
+	// Verify StatusReporter interface contract
+	var sr handlers.StatusReporter = &mockStatusReporter{}
+
+	msg := handlers.NewStatusMessage("start", "test_tool", "user123", handlers.PlatformDiscord)
+	if err := sr.PostStatus(context.Background(), msg); err != nil {
+		t.Errorf("PostStatus() returned error: %v", err)
+	}
+}
+
 func TestNewMessage(t *testing.T) {
 	called := false
 	replyFunc := func(response string) error {

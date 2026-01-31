@@ -224,7 +224,7 @@ func (h *Handler) handleMessageCreate(s *discordgo.Session, m *discordgo.Message
 		resp, err := h.router.Route(ctx, msg)
 		if err != nil {
 			h.logger.Error(ctx, "failed to route message", "error", err)
-			_, _ = s.ChannelMessageSend(m.ChannelID, FormatErrorMessage(err))
+			_, _ = s.ChannelMessageSend(m.ChannelID, formatErrorMessage(err))
 			return
 		}
 		if resp != nil && resp.Text != "" {
@@ -383,9 +383,9 @@ func (h *Handler) handleHelpCommand(_ context.Context) *discordgo.InteractionRes
 }
 
 // handleComponentInteraction processes button/select menu interactions.
-func (h *Handler) handleComponentInteraction(_ context.Context, _ *discordgo.Session, i *discordgo.InteractionCreate) {
+func (h *Handler) handleComponentInteraction(ctx context.Context, _ *discordgo.Session, i *discordgo.InteractionCreate) {
 	// Placeholder for future component interactions
-	h.logger.Debug(context.Background(), "received component interaction",
+	h.logger.Debug(ctx, "received component interaction",
 		"custom_id", i.MessageComponentData().CustomID,
 	)
 }
@@ -607,8 +607,8 @@ func (h *Handler) SendEmbed(_ context.Context, channelID string, embed *discordg
 	return nil
 }
 
-// FormatErrorMessage formats an error into a user-friendly message.
+// formatErrorMessage formats an error into a user-friendly message.
 // Deprecated: Use handlers.FormatUserFriendlyError instead for consistency.
-func FormatErrorMessage(err error) string {
+func formatErrorMessage(err error) string {
 	return handlers.FormatUserFriendlyError(err)
 }

@@ -188,6 +188,8 @@ func TestHandler_InterfaceCompliance(t *testing.T) {
 }
 
 func TestHandler_ErrorFormatting(t *testing.T) {
+	// Error formatting is tested in handlers/interface_test.go
+	// This test verifies the canonical FormatUserFriendlyError is used consistently
 	tests := []struct {
 		name    string
 		err     error
@@ -217,9 +219,9 @@ func TestHandler_ErrorFormatting(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := line.FormatErrorMessage(tt.err)
+			got := handlers.FormatUserFriendlyError(tt.err)
 			if got != tt.wantMsg {
-				t.Errorf("FormatErrorMessage() = %q, want %q", got, tt.wantMsg)
+				t.Errorf("FormatUserFriendlyError() = %q, want %q", got, tt.wantMsg)
 			}
 		})
 	}
