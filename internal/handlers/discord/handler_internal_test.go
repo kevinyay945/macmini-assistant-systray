@@ -15,7 +15,7 @@ import (
 func TestCreateStatusEmbed_Start(t *testing.T) {
 	h := New(Config{})
 	msg := handlers.StatusMessage{
-		Type:     "start",
+		Type:     handlers.StatusTypeStart,
 		ToolName: "youtube_download",
 		UserID:   "123456",
 		Platform: "discord",
@@ -32,7 +32,7 @@ func TestCreateStatusEmbed_Start(t *testing.T) {
 func TestCreateStatusEmbed_Progress(t *testing.T) {
 	h := New(Config{})
 	msg := handlers.StatusMessage{
-		Type:     "progress",
+		Type:     handlers.StatusTypeProgress,
 		ToolName: "gdrive_upload",
 		Message:  "Uploading 50%...",
 	}
@@ -51,7 +51,7 @@ func TestCreateStatusEmbed_Progress(t *testing.T) {
 func TestCreateStatusEmbed_Complete(t *testing.T) {
 	h := New(Config{})
 	msg := handlers.StatusMessage{
-		Type:     "complete",
+		Type:     handlers.StatusTypeComplete,
 		ToolName: "youtube_download",
 		Duration: 30 * time.Second,
 	}
@@ -67,7 +67,7 @@ func TestCreateStatusEmbed_Complete(t *testing.T) {
 func TestCreateStatusEmbed_Error(t *testing.T) {
 	h := New(Config{})
 	msg := handlers.StatusMessage{
-		Type:     "error",
+		Type:     handlers.StatusTypeError,
 		ToolName: "gdrive_upload",
 		Error:    errors.New("upload failed"),
 	}
@@ -151,7 +151,7 @@ func TestHandleToolsCommand_WithToolsInRegistry(t *testing.T) {
 func TestCreateStatusEmbed_WithDuration(t *testing.T) {
 	h := New(Config{})
 	msg := handlers.StatusMessage{
-		Type:     "complete",
+		Type:     handlers.StatusTypeComplete,
 		ToolName: "test_tool",
 		Duration: 5 * time.Second,
 	}
@@ -170,7 +170,7 @@ func TestCreateStatusEmbed_WithDuration(t *testing.T) {
 func TestCreateStatusEmbed_WithUserIDAndPlatform(t *testing.T) {
 	h := New(Config{})
 	msg := handlers.StatusMessage{
-		Type:     "start",
+		Type:     handlers.StatusTypeStart,
 		ToolName: "test_tool",
 		UserID:   "user123",
 		Platform: "discord",
@@ -206,8 +206,8 @@ func TestHandleHelpCommand(t *testing.T) {
 func TestSendMessage_NilSession(t *testing.T) {
 	h := New(Config{})
 	err := h.SendMessage(context.Background(), "channel123", "test")
-	if err == nil {
-		t.Error("SendMessage should return error when session is nil")
+	if !errors.Is(err, handlers.ErrSessionNotInitialized) {
+		t.Errorf("SendMessage should return ErrSessionNotInitialized, got %v", err)
 	}
 }
 
@@ -215,24 +215,24 @@ func TestSendEmbed_NilSession(t *testing.T) {
 	h := New(Config{})
 	embed := &discordgo.MessageEmbed{Title: "Test"}
 	err := h.SendEmbed(context.Background(), "channel123", embed)
-	if err == nil {
-		t.Error("SendEmbed should return error when session is nil")
+	if !errors.Is(err, handlers.ErrSessionNotInitialized) {
+		t.Errorf("SendEmbed should return ErrSessionNotInitialized, got %v", err)
 	}
 }
 
 func TestPostStatus_NilSession(t *testing.T) {
 	h := New(Config{StatusChannelID: "channel123"})
-	err := h.PostStatus(context.Background(), handlers.StatusMessage{Type: "start", ToolName: "test"})
-	if err == nil {
-		t.Error("PostStatus should return error when session is nil")
+	err := h.PostStatus(context.Background(), handlers.StatusMessage{Type: handlers.StatusTypeStart, ToolName: "test"})
+	if !errors.Is(err, handlers.ErrSessionNotInitialized) {
+		t.Errorf("PostStatus should return ErrSessionNotInitialized, got %v", err)
 	}
 }
 
 func TestRegisterSlashCommands_NilSession(t *testing.T) {
 	h := New(Config{})
 	err := h.registerSlashCommands()
-	if err == nil {
-		t.Error("registerSlashCommands should return error when session is nil")
+	if !errors.Is(err, handlers.ErrSessionNotInitialized) {
+		t.Errorf("registerSlashCommands should return ErrSessionNotInitialized, got %v", err)
 	}
 }
 

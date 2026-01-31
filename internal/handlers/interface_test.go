@@ -19,6 +19,38 @@ func TestPlatformConstants(t *testing.T) {
 	}
 }
 
+func TestStatusTypeConstants(t *testing.T) {
+	// Ensure status type constants are defined correctly
+	if handlers.StatusTypeStart != "start" {
+		t.Errorf("StatusTypeStart = %q, want %q", handlers.StatusTypeStart, "start")
+	}
+	if handlers.StatusTypeProgress != "progress" {
+		t.Errorf("StatusTypeProgress = %q, want %q", handlers.StatusTypeProgress, "progress")
+	}
+	if handlers.StatusTypeComplete != "complete" {
+		t.Errorf("StatusTypeComplete = %q, want %q", handlers.StatusTypeComplete, "complete")
+	}
+	if handlers.StatusTypeError != "error" {
+		t.Errorf("StatusTypeError = %q, want %q", handlers.StatusTypeError, "error")
+	}
+}
+
+func TestSentinelErrors(t *testing.T) {
+	// Ensure sentinel errors are defined and have correct messages
+	if handlers.ErrSessionNotInitialized == nil {
+		t.Error("ErrSessionNotInitialized should not be nil")
+	}
+	if handlers.ErrBotNotInitialized == nil {
+		t.Error("ErrBotNotInitialized should not be nil")
+	}
+	if handlers.ErrSessionNotInitialized.Error() != "session not initialized" {
+		t.Errorf("ErrSessionNotInitialized = %q, want %q", handlers.ErrSessionNotInitialized.Error(), "session not initialized")
+	}
+	if handlers.ErrBotNotInitialized.Error() != "bot client not initialized" {
+		t.Errorf("ErrBotNotInitialized = %q, want %q", handlers.ErrBotNotInitialized.Error(), "bot client not initialized")
+	}
+}
+
 // mockHandler implements handlers.Handler for interface verification.
 type mockHandler struct {
 	started bool

@@ -35,6 +35,12 @@ const DefaultReplyTimeout = 30 * time.Second
 // EventProcessingTimeout is the timeout for processing webhook events asynchronously.
 const EventProcessingTimeout = 10 * time.Minute
 
+// Retry configuration for API client initialization.
+const (
+	maxRetries = 3
+	retryDelay = 2 * time.Second
+)
+
 // Handler processes LINE bot webhook events.
 type Handler struct {
 	channelSecret string
@@ -43,8 +49,10 @@ type Handler struct {
 	router        handlers.MessageRouter
 	logger        *observability.Logger
 
-	mu      sync.RWMutex
-	started bool
+	mu         sync.RWMutex
+	started    bool
+	shutdownCh chan struct{}
+	wg         sync.WaitGroup
 }
 
 // Config holds LINE handler configuration.
@@ -84,26 +92,53 @@ func (h *Handler) Start() error {
 
 	// Initialize LINE Messaging API client if token is provided
 	if h.channelToken != "" {
-		bot, err := messaging_api.NewMessagingApiAPI(h.channelToken)
-		if err != nil {
-			return fmt.Errorf("failed to create LINE messaging API client: %w", err)
+		var bot *messaging_api.MessagingApiAPI
+		var lastErr error
+
+		for i := 0; i < maxRetries; i++ {
+			bot, lastErr = messaging_api.NewMessagingApiAPI(h.channelToken)
+			if lastErr == nil {
+				break
+			}
+			h.logger.Warn(context.Background(), "retrying LINE API client creation",
+				"attempt", i+1,
+				"error", lastErr,
+			)
+			if i < maxRetries-1 {
+				time.Sleep(retryDelay * time.Duration(i+1))
+			}
+		}
+
+		if lastErr != nil {
+			return fmt.Errorf("failed to create LINE messaging API client after %d attempts: %w", maxRetries, lastErr)
 		}
 		h.bot = bot
 	}
 
+	h.shutdownCh = make(chan struct{})
 	h.started = true
 	h.logger.Info(context.Background(), "LINE handler started")
 	return nil
 }
 
 // Stop gracefully shuts down the LINE handler.
+// It waits for all in-flight webhook processing to complete.
 func (h *Handler) Stop() error {
 	h.mu.Lock()
-	defer h.mu.Unlock()
-
 	if !h.started {
+		h.mu.Unlock()
 		return nil
 	}
+
+	// Signal shutdown to prevent new goroutines
+	close(h.shutdownCh)
+	h.mu.Unlock()
+
+	// Wait for all in-flight webhook processing to complete
+	h.wg.Wait()
+
+	h.mu.Lock()
+	defer h.mu.Unlock()
 
 	h.started = false
 	h.bot = nil
@@ -142,13 +177,35 @@ func (h *Handler) HandleWebhook(w http.ResponseWriter, r *http.Request) {
 	// LINE has a 1-second timeout, so we must respond quickly
 	w.WriteHeader(http.StatusOK)
 
+	// Check if we're shutting down before spawning a new goroutine
+	h.mu.RLock()
+	shutdownCh := h.shutdownCh
+	h.mu.RUnlock()
+
+	select {
+	case <-shutdownCh:
+		h.logger.Warn(r.Context(), "rejecting webhook during shutdown")
+		return
+	default:
+	}
+
 	// Process events asynchronously to avoid blocking the response
 	// Create a new context since request context will be cancelled after response
+	h.wg.Add(1)
 	go func() {
+		defer h.wg.Done()
+
 		ctx, cancel := context.WithTimeout(context.Background(), EventProcessingTimeout)
 		defer cancel()
 
 		for _, event := range cb.Events {
+			// Check for shutdown signal between events
+			select {
+			case <-shutdownCh:
+				h.logger.Warn(ctx, "stopping event processing due to shutdown")
+				return
+			default:
+			}
 			h.processEvent(ctx, event)
 		}
 	}()
@@ -174,13 +231,35 @@ func (h *Handler) HandleWebhookGin(c *gin.Context) {
 	// LINE has a 1-second timeout, so we must respond quickly
 	c.Status(http.StatusOK)
 
+	// Check if we're shutting down before spawning a new goroutine
+	h.mu.RLock()
+	shutdownCh := h.shutdownCh
+	h.mu.RUnlock()
+
+	select {
+	case <-shutdownCh:
+		h.logger.Warn(c.Request.Context(), "rejecting webhook during shutdown")
+		return
+	default:
+	}
+
 	// Process events asynchronously to avoid blocking the response
 	// Create a new context since request context will be cancelled after response
+	h.wg.Add(1)
 	go func() {
+		defer h.wg.Done()
+
 		ctx, cancel := context.WithTimeout(context.Background(), EventProcessingTimeout)
 		defer cancel()
 
 		for _, event := range cb.Events {
+			// Check for shutdown signal between events
+			select {
+			case <-shutdownCh:
+				h.logger.Warn(ctx, "stopping event processing due to shutdown")
+				return
+			default:
+			}
 			h.processEvent(ctx, event)
 		}
 	}()
@@ -342,7 +421,7 @@ func (h *Handler) sendReply(ctx context.Context, replyToken string, message stri
 	h.mu.RUnlock()
 
 	if bot == nil {
-		return errors.New("LINE bot client not initialized")
+		return handlers.ErrBotNotInitialized
 	}
 
 	// Truncate message if it exceeds the limit (using rune-safe truncation)
@@ -374,7 +453,7 @@ func (h *Handler) PushMessage(ctx context.Context, userID string, message string
 	h.mu.RUnlock()
 
 	if bot == nil {
-		return errors.New("LINE bot client not initialized")
+		return handlers.ErrBotNotInitialized
 	}
 
 	// Truncate message if it exceeds the limit (using rune-safe truncation)

@@ -13,6 +13,22 @@ const (
 	PlatformLINE    = "line"
 )
 
+// StatusType constants for status message types.
+const (
+	StatusTypeStart    = "start"
+	StatusTypeProgress = "progress"
+	StatusTypeComplete = "complete"
+	StatusTypeError    = "error"
+)
+
+// Sentinel errors for handler operations.
+var (
+	// ErrSessionNotInitialized is returned when Discord session is not ready.
+	ErrSessionNotInitialized = errors.New("session not initialized")
+	// ErrBotNotInitialized is returned when LINE bot client is not ready.
+	ErrBotNotInitialized = errors.New("bot client not initialized")
+)
+
 // Message represents a platform-agnostic incoming message.
 // This allows the orchestrator to process messages uniformly regardless of source.
 type Message struct {

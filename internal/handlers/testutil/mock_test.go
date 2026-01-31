@@ -18,10 +18,10 @@ func TestMockRouter_Route_Basic(t *testing.T) {
 	if err != nil {
 		t.Errorf("Route() error = %v", err)
 	}
-	if !m.Called {
+	if !m.Called() {
 		t.Error("Route() should set Called = true")
 	}
-	if m.LastMsg != msg {
+	if m.LastMsg() != msg {
 		t.Error("Route() should store LastMsg")
 	}
 	if resp != expectedResp {
@@ -62,14 +62,15 @@ func TestMockRouter_Route_CapturesMessage(t *testing.T) {
 
 	_, _ = m.Route(context.Background(), msg)
 
-	if m.LastMsg.Content != "test content" {
-		t.Errorf("LastMsg.Content = %q, want %q", m.LastMsg.Content, "test content")
+	lastMsg := m.LastMsg()
+	if lastMsg.Content != "test content" {
+		t.Errorf("LastMsg().Content = %q, want %q", lastMsg.Content, "test content")
 	}
-	if m.LastMsg.Platform != handlers.PlatformLINE {
-		t.Errorf("LastMsg.Platform = %q, want %q", m.LastMsg.Platform, handlers.PlatformLINE)
+	if lastMsg.Platform != handlers.PlatformLINE {
+		t.Errorf("LastMsg().Platform = %q, want %q", lastMsg.Platform, handlers.PlatformLINE)
 	}
-	if m.LastMsg.UserID != "user123" {
-		t.Errorf("LastMsg.UserID = %q, want %q", m.LastMsg.UserID, "user123")
+	if lastMsg.UserID != "user123" {
+		t.Errorf("LastMsg().UserID = %q, want %q", lastMsg.UserID, "user123")
 	}
 }
 
@@ -79,19 +80,19 @@ func TestMockRouter_Reset(t *testing.T) {
 	}
 	_, _ = m.Route(context.Background(), &handlers.Message{Content: "test"})
 
-	if !m.Called {
-		t.Fatal("expected Called = true before reset")
+	if !m.Called() {
+		t.Fatal("expected Called() = true before reset")
 	}
-	if m.LastMsg == nil {
-		t.Fatal("expected LastMsg != nil before reset")
+	if m.LastMsg() == nil {
+		t.Fatal("expected LastMsg() != nil before reset")
 	}
 
 	m.Reset()
 
-	if m.Called {
+	if m.Called() {
 		t.Error("Reset() should set Called = false")
 	}
-	if m.LastMsg != nil {
+	if m.LastMsg() != nil {
 		t.Error("Reset() should set LastMsg = nil")
 	}
 }

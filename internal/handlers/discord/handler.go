@@ -403,7 +403,7 @@ func (h *Handler) handleComponentInteraction(ctx context.Context, _ *discordgo.S
 // registerSlashCommands registers slash commands with Discord.
 func (h *Handler) registerSlashCommands() error {
 	if h.session == nil {
-		return errors.New("discord session not initialized")
+		return handlers.ErrSessionNotInitialized
 	}
 
 	h.registeredCommands = make([]*discordgo.ApplicationCommand, 0, len(slashCommands))
@@ -459,7 +459,7 @@ func (h *Handler) PostStatus(ctx context.Context, msg handlers.StatusMessage) er
 	h.mu.RUnlock()
 
 	if session == nil {
-		return errors.New("discord session not initialized")
+		return handlers.ErrSessionNotInitialized
 	}
 
 	if statusChannelID == "" {
@@ -590,7 +590,7 @@ func (h *Handler) SendMessage(_ context.Context, channelID string, message strin
 	h.mu.RUnlock()
 
 	if session == nil {
-		return errors.New("discord session not initialized")
+		return handlers.ErrSessionNotInitialized
 	}
 
 	_, err := session.ChannelMessageSend(channelID, message)
@@ -610,7 +610,7 @@ func (h *Handler) SendEmbed(_ context.Context, channelID string, embed *discordg
 	h.mu.RUnlock()
 
 	if session == nil {
-		return errors.New("discord session not initialized")
+		return handlers.ErrSessionNotInitialized
 	}
 
 	_, err := session.ChannelMessageSendEmbed(channelID, embed)

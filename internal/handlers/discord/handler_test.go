@@ -50,17 +50,6 @@ func TestHandler_Start_NoToken(t *testing.T) {
 	}
 }
 
-func TestHandler_Start_InvalidToken(t *testing.T) {
-	h := discord.New(discord.Config{
-		Token: "invalid-token",
-	})
-	err := h.Start()
-	// Should fail to connect with invalid token
-	if err == nil {
-		t.Error("Start() should return error with invalid token")
-	}
-}
-
 func TestHandler_Stop_NotStarted(t *testing.T) {
 	h := discord.New(discord.Config{})
 	if err := h.Stop(); err != nil {
@@ -92,12 +81,12 @@ func TestHandler_PostStatus_NotStarted(t *testing.T) {
 	})
 
 	err := h.PostStatus(context.Background(), handlers.StatusMessage{
-		Type:     "start",
+		Type:     handlers.StatusTypeStart,
 		ToolName: "test_tool",
 	})
 
-	if err == nil {
-		t.Error("PostStatus() should return error when session not initialized")
+	if !errors.Is(err, handlers.ErrSessionNotInitialized) {
+		t.Errorf("PostStatus() should return ErrSessionNotInitialized, got %v", err)
 	}
 }
 

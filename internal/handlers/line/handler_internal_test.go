@@ -132,16 +132,16 @@ func TestParseMessage_UnsupportedMessageType(t *testing.T) {
 func TestSendReply_NilBot(t *testing.T) {
 	h := New(Config{})
 	err := h.sendReply(context.Background(), "token", "message")
-	if err == nil {
-		t.Error("sendReply should return error when bot is nil")
+	if !errors.Is(err, handlers.ErrBotNotInitialized) {
+		t.Errorf("sendReply should return ErrBotNotInitialized, got %v", err)
 	}
 }
 
 func TestPushMessage_NilBot(t *testing.T) {
 	h := New(Config{})
 	err := h.PushMessage(context.Background(), "user", "message")
-	if err == nil {
-		t.Error("PushMessage should return error when bot is nil")
+	if !errors.Is(err, handlers.ErrBotNotInitialized) {
+		t.Errorf("PushMessage should return ErrBotNotInitialized, got %v", err)
 	}
 }
 
@@ -264,13 +264,16 @@ func TestHandler_ProcessEvent_MessageEvent_WithRouter(t *testing.T) {
 		Response: &handlers.Response{Text: "processed"},
 	}
 	h := New(Config{Router: mockRouter})
+	_ = h.Start()
+	defer func() { _ = h.Stop() }()
+
 	event := webhook.MessageEvent{
 		ReplyToken: "token",
 		Source:     webhook.UserSource{UserId: "U123"},
 		Message:    webhook.TextMessageContent{Id: "msg-1", Text: "hello"},
 	}
 	h.processEvent(context.Background(), event)
-	if !mockRouter.Called {
+	if !mockRouter.Called() {
 		t.Error("Router should be called for message event")
 	}
 }
@@ -280,13 +283,16 @@ func TestHandler_ProcessEvent_MessageEvent_RouterError(t *testing.T) {
 		Err: errors.New("routing failed"),
 	}
 	h := New(Config{Router: mockRouter})
+	_ = h.Start()
+	defer func() { _ = h.Stop() }()
+
 	event := webhook.MessageEvent{
 		ReplyToken: "token",
 		Source:     webhook.UserSource{UserId: "U123"},
 		Message:    webhook.TextMessageContent{Id: "msg-1", Text: "hello"},
 	}
 	h.processEvent(context.Background(), event) // Should not panic
-	if !mockRouter.Called {
+	if !mockRouter.Called() {
 		t.Error("Router should be called even when error occurs")
 	}
 }
@@ -305,13 +311,16 @@ func TestHandler_HandleMessageEvent_RouteSuccessWithResponse(t *testing.T) {
 		Response: &handlers.Response{Text: "response text"},
 	}
 	h := New(Config{Router: mockRouter})
+	_ = h.Start()
+	defer func() { _ = h.Stop() }()
+
 	event := webhook.MessageEvent{
 		ReplyToken: "token",
 		Source:     webhook.UserSource{UserId: "U123"},
 		Message:    webhook.TextMessageContent{Id: "msg-1", Text: "test"},
 	}
 	h.handleMessageEvent(context.Background(), event)
-	if !mockRouter.Called {
+	if !mockRouter.Called() {
 		t.Error("Router should be called")
 	}
 }
@@ -321,13 +330,16 @@ func TestHandler_HandleMessageEvent_RouteSuccessEmptyResponse(t *testing.T) {
 		Response: &handlers.Response{Text: ""},
 	}
 	h := New(Config{Router: mockRouter})
+	_ = h.Start()
+	defer func() { _ = h.Stop() }()
+
 	event := webhook.MessageEvent{
 		ReplyToken: "token",
 		Source:     webhook.UserSource{UserId: "U123"},
 		Message:    webhook.TextMessageContent{Id: "msg-1", Text: "test"},
 	}
 	h.handleMessageEvent(context.Background(), event)
-	if !mockRouter.Called {
+	if !mockRouter.Called() {
 		t.Error("Router should be called")
 	}
 }
@@ -337,13 +349,16 @@ func TestHandler_HandleMessageEvent_RouteSuccessNilResponse(t *testing.T) {
 		Response: nil,
 	}
 	h := New(Config{Router: mockRouter})
+	_ = h.Start()
+	defer func() { _ = h.Stop() }()
+
 	event := webhook.MessageEvent{
 		ReplyToken: "token",
 		Source:     webhook.UserSource{UserId: "U123"},
 		Message:    webhook.TextMessageContent{Id: "msg-1", Text: "test"},
 	}
 	h.handleMessageEvent(context.Background(), event)
-	if !mockRouter.Called {
+	if !mockRouter.Called() {
 		t.Error("Router should be called")
 	}
 }
