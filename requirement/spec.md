@@ -1,8 +1,7 @@
-OS: Mac
+OS: Mac M3
 Language: Golang
 
-
-- a orchestra to call the tool register at the copilot-sdk
+- a orchestra chatbot to call the tool register at the copilot-sdk
 - lib:
 	- downie (with deep link)
 	- google drive upload
@@ -43,6 +42,10 @@ Language: Golang
 			- timeout
 		- output:
 			-  share link
+
+- development process
+	- follow the tdd process
+	- use go build tag to skip some tests with local runable in the github action (for example: downie)
 
 
 Lib:
