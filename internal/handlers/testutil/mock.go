@@ -77,6 +77,7 @@ func (m *MockRouter) Reset() {
 }
 
 // Response returns the configured response (for backward compatibility).
+//
 // Deprecated: Use SetResponse to set and rely on Route to return.
 func (m *MockRouter) Response() *handlers.Response {
 	m.mu.RLock()
@@ -85,6 +86,7 @@ func (m *MockRouter) Response() *handlers.Response {
 }
 
 // Err returns the configured error (for backward compatibility).
+//
 // Deprecated: Use SetError to set and rely on Route to return.
 func (m *MockRouter) Err() error {
 	m.mu.RLock()
