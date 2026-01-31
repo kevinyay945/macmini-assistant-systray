@@ -220,9 +220,12 @@ func TestPipeline_HandleError_ContextDeadlineExceeded(t *testing.T) {
 	if resp.Text == "" {
 		t.Error("Response text should not be empty")
 	}
-	// Check that it contains timeout indication
-	if !strings.Contains(resp.Text, "⏱️") && !strings.Contains(resp.Text, "timed out") {
-		t.Errorf("Text should contain timeout indicator, got %q", resp.Text)
+	// Check that it contains both an emoji and relevant text
+	if !strings.Contains(resp.Text, "⏱️") {
+		t.Errorf("Text should contain timeout emoji ⏱️, got %q", resp.Text)
+	}
+	if !strings.Contains(resp.Text, "timed out") {
+		t.Errorf("Text should contain 'timed out', got %q", resp.Text)
 	}
 }
 
@@ -237,9 +240,12 @@ func TestPipeline_HandleError_ContextCanceled(t *testing.T) {
 	if resp.Text == "" {
 		t.Error("Response text should not be empty")
 	}
-	// Check that it contains cancelled indication
-	if !strings.Contains(resp.Text, "🚫") && !strings.Contains(resp.Text, "cancelled") {
-		t.Errorf("Text should contain cancelled indicator, got %q", resp.Text)
+	// Check that it contains both an emoji and relevant text
+	if !strings.Contains(resp.Text, "🚫") {
+		t.Errorf("Text should contain cancelled emoji 🚫, got %q", resp.Text)
+	}
+	if !strings.Contains(resp.Text, "cancelled") {
+		t.Errorf("Text should contain 'cancelled', got %q", resp.Text)
 	}
 }
 
@@ -254,9 +260,12 @@ func TestPipeline_HandleError_ErrAPIKeyNotConfigured(t *testing.T) {
 	if resp.Text == "" {
 		t.Error("Response text should not be empty")
 	}
-	// Check that it contains config indication
-	if !strings.Contains(resp.Text, "⚙️") && !strings.Contains(resp.Text, "configured") {
-		t.Errorf("Text should contain config indicator, got %q", resp.Text)
+	// Check that it contains both an emoji and relevant text
+	if !strings.Contains(resp.Text, "⚙️") {
+		t.Errorf("Text should contain config emoji ⚙️, got %q", resp.Text)
+	}
+	if !strings.Contains(resp.Text, "configured") {
+		t.Errorf("Text should contain 'configured', got %q", resp.Text)
 	}
 }
 
@@ -271,9 +280,12 @@ func TestPipeline_HandleError_ErrClientNotStarted(t *testing.T) {
 	if resp.Text == "" {
 		t.Error("Response text should not be empty")
 	}
-	// Check that it contains connection indication
-	if !strings.Contains(resp.Text, "🔌") && !strings.Contains(resp.Text, "starting") {
-		t.Errorf("Text should contain starting indicator, got %q", resp.Text)
+	// Check that it contains both an emoji and relevant text
+	if !strings.Contains(resp.Text, "🔌") {
+		t.Errorf("Text should contain plug emoji 🔌, got %q", resp.Text)
+	}
+	if !strings.Contains(resp.Text, "starting") {
+		t.Errorf("Text should contain 'starting', got %q", resp.Text)
 	}
 }
 
@@ -290,9 +302,12 @@ func TestPipeline_HandleError_AppError_ToolTimeout(t *testing.T) {
 	if resp.Text == "" {
 		t.Error("Response text should not be empty")
 	}
-	// Check that it contains timeout indication
-	if !strings.Contains(resp.Text, "⏱️") && !strings.Contains(resp.Text, "timed out") {
-		t.Errorf("Text should contain timeout indicator, got %q", resp.Text)
+	// Check that it contains both an emoji and relevant text
+	if !strings.Contains(resp.Text, "⏱️") {
+		t.Errorf("Text should contain timeout emoji ⏱️, got %q", resp.Text)
+	}
+	if !strings.Contains(resp.Text, "timed out") {
+		t.Errorf("Text should contain 'timed out', got %q", resp.Text)
 	}
 }
 
@@ -309,9 +324,12 @@ func TestPipeline_HandleError_AppError_ToolNotFound(t *testing.T) {
 	if resp.Text == "" {
 		t.Error("Response text should not be empty")
 	}
-	// Check that it contains search indication
-	if !strings.Contains(resp.Text, "🔍") && !strings.Contains(resp.Text, "tool") {
-		t.Errorf("Text should contain tool indicator, got %q", resp.Text)
+	// Check that it contains both an emoji and relevant text
+	if !strings.Contains(resp.Text, "🔍") {
+		t.Errorf("Text should contain search emoji 🔍, got %q", resp.Text)
+	}
+	if !strings.Contains(resp.Text, "tool") {
+		t.Errorf("Text should contain 'tool', got %q", resp.Text)
 	}
 }
 
@@ -328,9 +346,12 @@ func TestPipeline_HandleError_GenericError(t *testing.T) {
 	if resp.Text == "" {
 		t.Error("Response text should not be empty")
 	}
-	// Check that it contains error indication
-	if !strings.Contains(resp.Text, "❌") && !strings.Contains(resp.Text, "error") {
-		t.Errorf("Text should contain error indicator, got %q", resp.Text)
+	// Check that it contains both an emoji and relevant text
+	if !strings.Contains(resp.Text, "❌") {
+		t.Errorf("Text should contain error emoji ❌, got %q", resp.Text)
+	}
+	if !strings.Contains(resp.Text, "error") {
+		t.Errorf("Text should contain 'error', got %q", resp.Text)
 	}
 }
 

@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"regexp"
 	"sync"
 	"time"
 
@@ -16,6 +17,30 @@ import (
 
 // Default timeout for Copilot SDK operations (10 minutes per PRD).
 const DefaultTimeout = 10 * time.Minute
+
+// userIDSanitizer is a pre-compiled regex for sanitizing user IDs.
+// Only allows alphanumeric characters, hyphens, and underscores.
+var userIDSanitizer = regexp.MustCompile(`[^a-zA-Z0-9_-]`)
+
+// sanitizeUserID removes special characters from a user ID to prevent
+// injection issues when used in session IDs.
+func sanitizeUserID(userID string) string {
+	// Replace any character that isn't alphanumeric, hyphen, or underscore
+	sanitized := userIDSanitizer.ReplaceAllString(userID, "_")
+
+	// Limit length to prevent overly long session IDs
+	const maxLen = 64
+	if len(sanitized) > maxLen {
+		sanitized = sanitized[:maxLen]
+	}
+
+	// If empty after sanitization, use a default
+	if sanitized == "" {
+		sanitized = "anonymous"
+	}
+
+	return sanitized
+}
 
 // Sentinel errors for the Copilot client.
 var (
@@ -396,8 +421,10 @@ func (c *Client) ProcessMessageWithUserID(ctx context.Context, message, userID s
 	defer cancel()
 
 	// Create a session for this request with user-specific ID
+	// Sanitize userID to prevent special characters from causing issues
+	sanitizedUserID := sanitizeUserID(userID)
 	tools, _ := c.RegisterTools()
-	sessionID := fmt.Sprintf("user-%s-%d", userID, time.Now().UnixNano())
+	sessionID := fmt.Sprintf("user-%s-%d", sanitizedUserID, time.Now().UnixNano())
 	session, err := sdk.CreateSession(&copilot.SessionConfig{
 		SessionID: sessionID,
 		Tools:     tools,
