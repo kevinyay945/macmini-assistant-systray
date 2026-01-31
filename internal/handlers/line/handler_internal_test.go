@@ -24,8 +24,8 @@ func TestTruncateMessage(t *testing.T) {
 		{"Hello", 100, "Hello"},
 		{"12345", 5, "12345"},
 		{"Hello, World!", 10, "Hello, ..."},
-		{"你好世界测试", 6, "你好世界测试"},    // exactly 6 runes, no truncation
-		{"你好世界测试更多", 6, "你好世..."}, // 8 runes, truncate to 6 (3 chars + ...)
+		{"你好世界測試", 6, "你好世界測試"},   // exactly 6 runes, no truncation
+		{"你好世界測試更多", 6, "你好世..."}, // 8 runes, truncate to 6 (3 chars + ...)
 		{"Hello", 3, "..."},
 		{"", 10, ""},
 	}
