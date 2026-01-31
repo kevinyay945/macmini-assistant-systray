@@ -10,11 +10,11 @@ import (
 // Run starts the system tray application.
 // This blocks until Quit is called or the application terminates.
 func (t *TrayApp) Run() {
-	systray.Run(t.onReady2, t.onExit2)
+	systray.Run(t.setupTray, t.cleanupTray)
 }
 
-// onReady2 is the internal onReady handler that sets up the tray.
-func (t *TrayApp) onReady2() {
+// setupTray is the internal handler that sets up the tray menu.
+func (t *TrayApp) setupTray() {
 	// Set initial icon and tooltip
 	systray.SetIcon(iconIdle)
 	systray.SetTitle("")
@@ -43,8 +43,8 @@ func (t *TrayApp) onReady2() {
 	go t.handleMenuClicks(mStatus, mToggle, mSettings, mCheckUpdate, mQuit)
 }
 
-// onExit2 is the internal onExit handler.
-func (t *TrayApp) onExit2() {
+// cleanupTray is the internal handler for tray cleanup.
+func (t *TrayApp) cleanupTray() {
 	// Signal stop to handleMenuClicks
 	close(t.stopCh)
 

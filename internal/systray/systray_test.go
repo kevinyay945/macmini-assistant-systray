@@ -82,9 +82,20 @@ func TestNewTrayApp_WithOptions(t *testing.T) {
 	if app == nil {
 		t.Error("NewTrayApp() with options returned nil")
 	}
-	// Note: callbacks would be called during Run(), which requires GUI
-	_ = onReadyCalled
-	_ = onExitCalled
+
+	// On stub platform, Run() calls callbacks immediately
+	// Run in goroutine and quit after a short delay
+	go func() {
+		app.Quit()
+	}()
+	app.Run()
+
+	if !onReadyCalled {
+		t.Error("onReady callback was not called")
+	}
+	if !onExitCalled {
+		t.Error("onExit callback was not called")
+	}
 }
 
 // TestTrayApp_GetState tests getting the current state.

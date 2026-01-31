@@ -91,12 +91,8 @@ func NewAutoStart(opts ...AutoStartOption) (*AutoStart, error) {
 // Enable installs and loads the LaunchAgent.
 func (a *AutoStart) Enable() error {
 	// Get current executable path if not set
-	if a.execPath == "" {
-		execPath, err := os.Executable()
-		if err != nil {
-			return fmt.Errorf("failed to get executable path: %w", err)
-		}
-		a.execPath = execPath
+	if err := a.ensureExecPath(); err != nil {
+		return err
 	}
 
 	// Generate plist content
@@ -166,6 +162,18 @@ func (a *AutoStart) GetLogPath() string {
 	return a.logPath
 }
 
+// ensureExecPath sets the executable path if not already set.
+func (a *AutoStart) ensureExecPath() error {
+	if a.execPath == "" {
+		execPath, err := os.Executable()
+		if err != nil {
+			return fmt.Errorf("failed to get executable path: %w", err)
+		}
+		a.execPath = execPath
+	}
+	return nil
+}
+
 // generatePlist generates the LaunchAgent plist content.
 func (a *AutoStart) generatePlist() (string, error) {
 	tmpl, err := template.New("plist").Parse(plistTemplate)
@@ -190,13 +198,9 @@ func (a *AutoStart) generatePlist() (string, error) {
 // GeneratePlistContent returns the plist content that would be generated.
 // This is useful for testing or preview purposes.
 func (a *AutoStart) GeneratePlistContent() (string, error) {
-	// Set execPath temporarily if not set
-	if a.execPath == "" {
-		execPath, err := os.Executable()
-		if err != nil {
-			return "", fmt.Errorf("failed to get executable path: %w", err)
-		}
-		a.execPath = execPath
+	// Set execPath if not set
+	if err := a.ensureExecPath(); err != nil {
+		return "", err
 	}
 	return a.generatePlist()
 }
