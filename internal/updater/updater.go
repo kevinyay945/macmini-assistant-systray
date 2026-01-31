@@ -27,6 +27,7 @@ type Updater struct {
 	repoOwner      string
 	repoName       string
 	httpClient     *http.Client
+	binaryName     string // Name of the binary to extract from archive
 }
 
 // GitHubRelease represents a GitHub release response.
@@ -51,6 +52,7 @@ type Config struct {
 	RepoOwner      string
 	RepoName       string
 	HTTPClient     *http.Client // Optional, defaults to http.DefaultClient
+	BinaryName     string        // Optional, name of binary to extract (defaults to "orchestrator")
 }
 
 // New creates a new updater instance.
@@ -65,12 +67,18 @@ func New(cfg Config) *Updater {
 		httpClient = &http.Client{}
 	}
 
+	binaryName := cfg.BinaryName
+	if binaryName == "" {
+		binaryName = "orchestrator"
+	}
+
 	return &Updater{
 		currentVersion: version,
 		rawVersion:     rawVersion,
 		repoOwner:      cfg.RepoOwner,
 		repoName:       cfg.RepoName,
 		httpClient:     httpClient,
+		binaryName:     binaryName,
 	}
 }
 
@@ -160,7 +168,7 @@ func (u *Updater) CheckForUpdate(ctx context.Context) (*UpdateInfo, error) {
 // fetchLatestRelease fetches the latest release from GitHub API.
 func (u *Updater) fetchLatestRelease(ctx context.Context) (*GitHubRelease, error) {
 	url := fmt.Sprintf("https://api.github.com/repos/%s/%s/releases/latest", u.repoOwner, u.repoName)
-	
+
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
 		return nil, err
@@ -337,8 +345,15 @@ func (u *Updater) parseChecksum(checksumData []byte, fileName string) (string, e
 			continue
 		}
 		parts := strings.Fields(line)
-		if len(parts) >= 2 && strings.Contains(line, fileName) {
-			return parts[0], nil
+		// Check that we have at least 2 parts and the second part exactly matches the filename
+		if len(parts) >= 2 {
+			// The format is: checksum  filename or checksum filename
+			// We check all parts after the first to handle both formats
+			for i := 1; i < len(parts); i++ {
+				if parts[i] == fileName {
+					return parts[0], nil
+				}
+			}
 		}
 	}
 	return "", fmt.Errorf("checksum not found for %s", fileName)
@@ -360,8 +375,8 @@ func (u *Updater) extractBinary(archivePath string) (string, error) {
 
 	tr := tar.NewReader(gzr)
 
-	// Find the binary file (usually named "orchestrator" or similar)
-	expectedBinaryName := "orchestrator"
+	// Find the binary file
+	expectedBinaryName := u.binaryName
 	if runtime.GOOS == "windows" {
 		expectedBinaryName += ".exe"
 	}
