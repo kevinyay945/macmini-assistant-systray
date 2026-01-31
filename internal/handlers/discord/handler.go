@@ -22,12 +22,13 @@ var (
 	_ handlers.StatusReporter = (*Handler)(nil)
 )
 
-// Embed colors for status messages
+// Embed colors for status messages.
+// These are from the Flat UI Colors palette (https://flatuicolors.com/).
 const (
-	ColorBlue   = 0x3498db // Tool started
-	ColorGreen  = 0x2ecc71 // Tool completed
-	ColorRed    = 0xe74c3c // Error
-	ColorYellow = 0xf1c40f // Warning/progress
+	ColorBlue   = 0x3498db // Peter River - Tool started
+	ColorGreen  = 0x2ecc71 // Emerald - Tool completed
+	ColorRed    = 0xe74c3c // Alizarin - Error
+	ColorYellow = 0xf1c40f // Sun Flower - Warning/progress
 )
 
 // Handler processes Discord bot events.
@@ -297,7 +298,8 @@ func (h *Handler) handleSlashCommand(ctx context.Context, s *discordgo.Session, 
 }
 
 // handleStatusCommand handles the /status slash command.
-func (h *Handler) handleStatusCommand(_ context.Context) *discordgo.InteractionResponse {
+func (h *Handler) handleStatusCommand(ctx context.Context) *discordgo.InteractionResponse {
+	h.logger.Debug(ctx, "handling status command")
 	h.mu.RLock()
 	started := h.started
 	h.mu.RUnlock()
@@ -330,7 +332,8 @@ func (h *Handler) handleStatusCommand(_ context.Context) *discordgo.InteractionR
 }
 
 // handleToolsCommand handles the /tools slash command.
-func (h *Handler) handleToolsCommand(_ context.Context) *discordgo.InteractionResponse {
+func (h *Handler) handleToolsCommand(ctx context.Context) *discordgo.InteractionResponse {
+	h.logger.Debug(ctx, "handling tools command")
 	var toolsList strings.Builder
 	toolsList.WriteString("**Available Tools:**\n")
 
@@ -356,7 +359,8 @@ func (h *Handler) handleToolsCommand(_ context.Context) *discordgo.InteractionRe
 }
 
 // handleHelpCommand handles the /help slash command.
-func (h *Handler) handleHelpCommand(_ context.Context) *discordgo.InteractionResponse {
+func (h *Handler) handleHelpCommand(ctx context.Context) *discordgo.InteractionResponse {
+	h.logger.Debug(ctx, "handling help command")
 	embed := &discordgo.MessageEmbed{
 		Title:       "MacMini Assistant Help",
 		Color:       ColorBlue,

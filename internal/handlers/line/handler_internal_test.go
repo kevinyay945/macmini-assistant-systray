@@ -2,11 +2,15 @@ package line
 
 import (
 	"context"
+	"crypto/hmac"
+	"crypto/sha256"
+	"encoding/base64"
 	"errors"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/line/line-bot-sdk-go/v8/linebot/webhook"
@@ -383,5 +387,66 @@ func TestHandler_ProcessEvent_PostbackEvent(t *testing.T) {
 func TestTruncationSuffix(t *testing.T) {
 	if TruncationSuffix != "..." {
 		t.Errorf("TruncationSuffix = %q, want %q", TruncationSuffix, "...")
+	}
+}
+
+func TestHandler_HandleWebhook_ValidSignature(t *testing.T) {
+	secret := "test-channel-secret"
+	body := `{"events":[]}`
+
+	// Generate valid HMAC-SHA256 signature
+	mac := hmac.New(sha256.New, []byte(secret))
+	mac.Write([]byte(body))
+	signature := base64.StdEncoding.EncodeToString(mac.Sum(nil))
+
+	h := New(Config{ChannelSecret: secret})
+	_ = h.Start()
+	defer func() { _ = h.Stop() }()
+
+	req := httptest.NewRequest(http.MethodPost, "/webhook", strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("X-Line-Signature", signature)
+	w := httptest.NewRecorder()
+
+	h.HandleWebhook(w, req)
+
+	// LINE SDK returns 200 OK for valid signature with empty events
+	if w.Code != http.StatusOK {
+		t.Errorf("HandleWebhook() with valid signature status = %d, want %d", w.Code, http.StatusOK)
+	}
+}
+
+func TestHandler_HandleWebhookGin_ValidSignature(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	secret := "test-channel-secret"
+	body := `{"events":[]}`
+
+	// Generate valid HMAC-SHA256 signature
+	mac := hmac.New(sha256.New, []byte(secret))
+	mac.Write([]byte(body))
+	signature := base64.StdEncoding.EncodeToString(mac.Sum(nil))
+
+	h := New(Config{ChannelSecret: secret})
+	_ = h.Start()
+	defer func() { _ = h.Stop() }()
+
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	req := httptest.NewRequest(http.MethodPost, "/webhook", strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("X-Line-Signature", signature)
+	c.Request = req
+
+	h.HandleWebhookGin(c)
+
+	// LINE SDK returns 200 OK for valid signature with empty events
+	if w.Code != http.StatusOK {
+		t.Errorf("HandleWebhookGin() with valid signature status = %d, want %d", w.Code, http.StatusOK)
+	}
+}
+
+func TestShutdownTimeout_Constant(t *testing.T) {
+	if shutdownTimeout != 30*time.Second {
+		t.Errorf("shutdownTimeout = %v, want %v", shutdownTimeout, 30*time.Second)
 	}
 }

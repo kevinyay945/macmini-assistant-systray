@@ -75,8 +75,12 @@ func TestLineHandler_EmptyMessage(t *testing.T)
 
 ### Notes
 
-<!-- Add your notes here -->
-please show me how to setup the cert
+**Code Review Improvements (2026-01-31):**
+- Added HTTP body stream warning comment to `HandleWebhook` method
+- Implemented graceful shutdown with 30-second timeout to prevent hanging
+- Added `shutdownTimeout` constant for configurable shutdown behavior
+- Added HMAC-SHA256 valid signature tests (`TestHandler_HandleWebhook_ValidSignature`, `TestHandler_HandleWebhookGin_ValidSignature`)
+- Added `TestShutdownTimeout_Constant` to verify timeout configuration
 
 ---
 
@@ -199,8 +203,10 @@ func TestDiscordHandler_DirectMessage(t *testing.T)
 
 ### Notes
 
-<!-- Add your notes here -->
-please show me how to setup the cert
+**Code Review Improvements (2026-01-31):**
+- Added Flat UI Colors palette reference to embed color constants
+- Fixed context parameter usage in slash command handlers (now logs debug messages)
+- Documented color constants with descriptive names: Peter River (Blue), Emerald (Green), Alizarin (Red), Sun Flower (Yellow)
 
 ---
 
@@ -320,7 +326,10 @@ func TestFormatUserFriendlyError(t *testing.T)
 
 ### Notes
 
-<!-- Add your notes here -->
+**Code Review Improvements (2026-01-31):**
+- Handler interface defined in `internal/handlers/handler.go` for unified lifecycle management
+- Added concurrent safety tests for `MockRouter` (`TestMockRouter_ConcurrentAccess`, `TestMockRouter_ConcurrentReset`)
+- MockRouter in testutil package is thread-safe and properly documented
 
 ---
 

@@ -3,6 +3,7 @@ package testutil
 import (
 	"context"
 	"errors"
+	"sync"
 	"testing"
 
 	"github.com/kevinyay945/macmini-assistant-systray/internal/handlers"
@@ -114,4 +115,55 @@ func TestMockRouter_Reset_PreservesConfig(t *testing.T) {
 	if !errors.Is(m.Err, expectedErr) {
 		t.Error("Reset() should preserve Err")
 	}
+}
+
+func TestMockRouter_ConcurrentAccess(t *testing.T) {
+	m := &MockRouter{Response: &handlers.Response{Text: "ok"}}
+	var wg sync.WaitGroup
+
+	// Spawn multiple goroutines to access the mock concurrently
+	for i := 0; i < 100; i++ {
+		wg.Add(1)
+		go func(id int) {
+			defer wg.Done()
+			msg := &handlers.Message{
+				Content:  "test",
+				Platform: handlers.PlatformDiscord,
+				UserID:   "user",
+			}
+			_, _ = m.Route(context.Background(), msg)
+			_ = m.Called()
+			_ = m.LastMsg()
+		}(i)
+	}
+
+	wg.Wait()
+
+	if !m.Called() {
+		t.Error("Expected Called() = true after concurrent access")
+	}
+	if m.LastMsg() == nil {
+		t.Error("Expected LastMsg() != nil after concurrent access")
+	}
+}
+
+func TestMockRouter_ConcurrentReset(t *testing.T) {
+	m := &MockRouter{Response: &handlers.Response{Text: "ok"}}
+	var wg sync.WaitGroup
+
+	// Test concurrent Route and Reset operations
+	for i := 0; i < 50; i++ {
+		wg.Add(2)
+		go func() {
+			defer wg.Done()
+			_, _ = m.Route(context.Background(), &handlers.Message{Content: "test"})
+		}()
+		go func() {
+			defer wg.Done()
+			m.Reset()
+		}()
+	}
+
+	wg.Wait()
+	// Should not panic or race - the test itself is a success if we get here
 }

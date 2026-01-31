@@ -37,8 +37,9 @@ const EventProcessingTimeout = 10 * time.Minute
 
 // Retry configuration for API client initialization.
 const (
-	maxRetries = 3
-	retryDelay = 2 * time.Second
+	maxRetries      = 3
+	retryDelay      = 2 * time.Second
+	shutdownTimeout = 30 * time.Second // Timeout for graceful shutdown
 )
 
 // Handler processes LINE bot webhook events.
@@ -134,8 +135,21 @@ func (h *Handler) Stop() error {
 	close(h.shutdownCh)
 	h.mu.Unlock()
 
-	// Wait for all in-flight webhook processing to complete
-	h.wg.Wait()
+	// Wait for all in-flight webhook processing to complete with timeout
+	done := make(chan struct{})
+	go func() {
+		h.wg.Wait()
+		close(done)
+	}()
+
+	select {
+	case <-done:
+		// All webhooks completed gracefully
+	case <-time.After(shutdownTimeout):
+		h.logger.Warn(context.Background(), "shutdown timeout exceeded, some requests may be dropped",
+			"timeout", shutdownTimeout,
+		)
+	}
 
 	h.mu.Lock()
 	defer h.mu.Unlock()
@@ -148,6 +162,9 @@ func (h *Handler) Stop() error {
 
 // HandleWebhook processes incoming LINE webhook requests.
 // This is designed to be used with net/http or any HTTP framework.
+//
+// WARNING: The request body is a stream and can only be read once.
+// Do not implement retry logic that re-reads the body without buffering it first.
 func (h *Handler) HandleWebhook(w http.ResponseWriter, r *http.Request) {
 	// Always close the request body to prevent connection leaks
 	if r.Body != nil {
