@@ -15,6 +15,7 @@ env:
 permissions:
   contents: read
   security-events: write
+  pull-requests: write
 
 jobs:
   gosec:
@@ -41,6 +42,16 @@ jobs:
         with:
           sarif_file: gosec-results.sarif
 
+      - name: Comment PR on failure
+        if: steps.gosec.outcome == 'failure' && github.event_name == 'pull_request'
+        uses: peter-evans/create-or-update-comment@v4
+        with:
+          issue-number: ${{ github.event.pull_request.number }}
+          body: |
+            ## ⚠️ Security Issues Found (Gosec)
+
+            Gosec found potential security issues. Please check the [Security tab](${{ github.server_url }}/${{ github.repository }}/security/code-scanning) or the [workflow run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}) for details.
+
       - name: Check Gosec results
         if: steps.gosec.outcome == 'failure'
         run: |
@@ -59,6 +70,33 @@ jobs:
           go-version: ${{ env.GO_VERSION }}
 
       - name: Run govulncheck
+        id: vulncheck
         run: |
           go install golang.org/x/vuln/cmd/govulncheck@latest
-          govulncheck ./...
+          set +e
+          output=$(govulncheck ./... 2>&1)
+          exit_code=$?
+          echo "$output"
+          # Store last 50 lines for PR comment
+          echo "vulncheck_output<<EOF" >> $GITHUB_OUTPUT
+          echo "$output" | tail -50 >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+          exit $exit_code
+
+      - name: Comment PR on failure
+        if: failure() && github.event_name == 'pull_request'
+        uses: peter-evans/create-or-update-comment@v4
+        with:
+          issue-number: ${{ github.event.pull_request.number }}
+          body: |
+            ## ⚠️ Vulnerability Found (govulncheck)
+
+            govulncheck found potential vulnerabilities in dependencies. Please check the [workflow run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}) for details.
+
+            <details>
+            <summary>Vulnerability Check Output (last 50 lines)</summary>
+
+            ```
+            ${{ steps.vulncheck.outputs.vulncheck_output || 'See workflow logs for details' }}
+            ```
+            </details>

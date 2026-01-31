@@ -6,6 +6,10 @@ on:
   pull_request:
     branches: [main]
 
+permissions:
+  contents: read
+  pull-requests: write
+
 jobs:
   build:
     runs-on: macos-latest
@@ -18,8 +22,19 @@ jobs:
           go-version: '1.24'
 
       - name: Build
+        id: build
         run: |
           GOOS=darwin GOARCH=arm64 go build -o bin/orchestrator-darwin-arm64 cmd/orchestrator/main.go
+
+      - name: Comment PR on failure
+        if: failure() && github.event_name == 'pull_request'
+        uses: peter-evans/create-or-update-comment@v4
+        with:
+          issue-number: ${{ github.event.pull_request.number }}
+          body: |
+            ## ❌ Build Failed
+
+            The build has failed. Please check the [workflow run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}) for details.
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4

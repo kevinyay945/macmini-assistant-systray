@@ -1,7 +1,7 @@
 # Phase 2: Messaging Platform Integration
 
 **Duration**: Weeks 4-5
-**Status**: ⚪ Not Started
+**Status**: ✅ Complete
 **Goal**: Implement LINE and Discord bot handlers
 
 ---
@@ -15,15 +15,15 @@ This phase implements the messaging platform integrations. Both LINE and Discord
 ## 2.1 LINE Bot Handler
 
 **Duration**: 3 days
-**Status**: ⚪ Not Started
+**Status**: ✅ Complete
 
 ### Tasks
 
-- [ ] Webhook endpoint with Gin
-- [ ] Signature validation
-- [ ] Message parsing and routing
-- [ ] Reply message formatting
-- [ ] Error handling and retry logic
+- [x] Webhook endpoint with Gin
+- [x] Signature validation
+- [x] Message parsing and routing
+- [x] Reply message formatting
+- [x] Error handling and retry logic
 
 ### Implementation Details
 
@@ -67,31 +67,35 @@ func TestLineHandler_EmptyMessage(t *testing.T)
 
 ### Acceptance Criteria
 
-- [ ] Webhook validates LINE signatures
-- [ ] Bot responds only when messaged
-- [ ] Messages parsed and forwarded to orchestrator
-- [ ] Errors returned in user-friendly format
-- [ ] Large messages handled correctly
+- [x] Webhook validates LINE signatures
+- [x] Bot responds only when messaged
+- [x] Messages parsed and forwarded to orchestrator
+- [x] Errors returned in user-friendly format
+- [x] Large messages handled correctly
 
 ### Notes
 
-<!-- Add your notes here -->
-please show me how to setup the cert
+**Code Review Improvements (2026-01-31):**
+- Added HTTP body stream warning comment to `HandleWebhook` method
+- Implemented graceful shutdown with 30-second timeout to prevent hanging
+- Added `shutdownTimeout` constant for configurable shutdown behavior
+- Added HMAC-SHA256 valid signature tests (`TestHandler_HandleWebhook_ValidSignature`, `TestHandler_HandleWebhookGin_ValidSignature`)
+- Added `TestShutdownTimeout_Constant` to verify timeout configuration
 
 ---
 
 ## 2.2 Discord Bot Handler
 
 **Duration**: 4 days
-**Status**: ⚪ Not Started
+**Status**: ✅ Complete
 
 ### Tasks
 
-- [ ] Bot connection with intents
-- [ ] Message event handling (mentions, DMs)
-- [ ] Slash commands (`/status`, `/tools`, `/help`)
-- [ ] Status panel integration (separate channel)
-- [ ] Rich embed formatting
+- [x] Bot connection with intents
+- [x] Message event handling (mentions, DMs)
+- [x] Slash commands (`/status`, `/tools`, `/help`)
+- [x] Status panel integration (separate channel)
+- [x] Rich embed formatting
 
 ### Implementation Details
 
@@ -191,29 +195,32 @@ func TestDiscordHandler_DirectMessage(t *testing.T)
 
 ### Acceptance Criteria
 
-- [ ] Bot responds to mentions and DMs
-- [ ] Slash commands functional
-- [ ] Status panel posts tool execution events
-- [ ] Errors posted to status channel with details
-- [ ] Color-coded rich embeds
+- [x] Bot responds to mentions and DMs
+- [x] Slash commands functional
+- [x] Status panel posts tool execution events
+- [x] Errors posted to status channel with details
+- [x] Color-coded rich embeds
 
 ### Notes
 
-<!-- Add your notes here -->
-please show me how to setup the cert
+**Code Review Improvements (2026-01-31):**
+- Added Flat UI Colors palette reference to embed color constants
+- Fixed context parameter usage in slash command handlers (now logs debug messages)
+- Documented color constants with descriptive names: Peter River (Blue), Emerald (Green), Alizarin (Red), Sun Flower (Yellow)
 
 ---
 
 ## 2.3 Unified Message Interface
 
 **Duration**: 2 days
-**Status**: ⚪ Not Started
+**Status**: ✅ Complete
 
 ### Tasks
 
-- [ ] Abstract message interface for platforms
-- [ ] Common message routing logic
-- [ ] Platform-agnostic error formatting
+- [x] Abstract message interface for platforms
+- [x] Common message routing logic
+- [x] Platform-agnostic error formatting
+- [x] Exported platform constants for type safety
 
 ### Implementation Details
 
@@ -221,15 +228,27 @@ please show me how to setup the cert
 // internal/handlers/interface.go
 package handlers
 
-import "context"
+import (
+    "context"
+    "errors"
+    "time"
+)
+
+// Platform constants for message sources
+const (
+    PlatformDiscord = "discord"
+    PlatformLINE    = "line"
+)
 
 // Message represents a platform-agnostic message
 type Message struct {
     ID        string
     UserID    string
-    Platform  string // "line", "discord"
+    Platform  string // Use PlatformDiscord or PlatformLINE constants
     Content   string
+    Timestamp time.Time
     ReplyFunc func(response string) error
+    Metadata  map[string]interface{}
 }
 
 // MessageRouter routes messages to the orchestrator
@@ -246,13 +265,34 @@ type Response struct {
 
 // StatusMessage for status panel
 type StatusMessage struct {
-    Type      string // "start", "complete", "error"
+    Type      string // "start", "progress", "complete", "error"
     ToolName  string
     UserID    string
     Platform  string
     Duration  time.Duration
     Result    map[string]interface{}
     Error     error
+    Message   string
+}
+
+// StatusReporter defines the interface for posting status updates
+type StatusReporter interface {
+    PostStatus(ctx context.Context, msg StatusMessage) error
+}
+
+// FormatUserFriendlyError formats an error into a user-friendly message
+// with emoji support (canonical error formatter for all platforms)
+func FormatUserFriendlyError(err error) string {
+    if err == nil {
+        return ""
+    }
+    if errors.Is(err, context.DeadlineExceeded) {
+        return "⏱️ Request timed out. Please try again."
+    }
+    if errors.Is(err, context.Canceled) {
+        return "🚫 Request was cancelled."
+    }
+    return "❌ An error occurred while processing your request. Please try again later."
 }
 ```
 
@@ -260,22 +300,36 @@ type StatusMessage struct {
 
 ```go
 // internal/handlers/interface_test.go
-func TestMessageInterface_Routing(t *testing.T)
-func TestMessageInterface_ErrorFormatting(t *testing.T)
-func TestMessageInterface_PlatformConversion(t *testing.T)
-func TestMessage_FromLINE(t *testing.T)
-func TestMessage_FromDiscord(t *testing.T)
+func TestPlatformConstants(t *testing.T)
+func TestNewMessage(t *testing.T)
+func TestNewMessage_FromLINE(t *testing.T)
+func TestNewMessage_FromDiscord(t *testing.T)
+func TestNewResponse(t *testing.T)
+func TestNewErrorResponse(t *testing.T)
+func TestNewStatusMessage(t *testing.T)
+func TestStatusMessage_WithDuration(t *testing.T)
+func TestStatusMessage_WithError(t *testing.T)
+func TestDefaultErrorFormatter_FormatError(t *testing.T)
+func TestMessage_MetadataUsage(t *testing.T)
+func TestResponse_DataUsage(t *testing.T)
+func TestStatusMessage_AllTypes(t *testing.T)
+func TestFormatUserFriendlyError(t *testing.T)
 ```
 
 ### Acceptance Criteria
 
-- [ ] Single interface for LINE and Discord
-- [ ] Platform-specific formatting abstracted
-- [ ] Easy to add new platforms (Slack, etc.)
+- [x] Single interface for LINE and Discord
+- [x] Platform-specific formatting abstracted
+- [x] Exported platform constants for type safety
+- [x] Shared error formatter with emoji support
+- [x] Easy to add new platforms (Slack, etc.)
 
 ### Notes
 
-<!-- Add your notes here -->
+**Code Review Improvements (2026-01-31):**
+- Handler interface defined in `internal/handlers/handler.go` for unified lifecycle management
+- Added concurrent safety tests for `MockRouter` (`TestMockRouter_ConcurrentAccess`, `TestMockRouter_ConcurrentReset`)
+- MockRouter in testutil package is thread-safe and properly documented
 
 ---
 
@@ -283,10 +337,10 @@ func TestMessage_FromDiscord(t *testing.T)
 
 By the end of Phase 2:
 
-- [ ] LINE bot receiving and responding to messages
-- [ ] Discord bot with mentions, DMs, and slash commands
-- [ ] Status panel posting execution events
-- [ ] Unified message interface
+- [x] LINE bot receiving and responding to messages
+- [x] Discord bot with mentions, DMs, and slash commands
+- [x] Status panel posting execution events
+- [x] Unified message interface
 
 ---
 
