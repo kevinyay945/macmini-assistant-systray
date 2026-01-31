@@ -52,26 +52,42 @@ func (t *Tool) Description() string {
 	return "Upload files to Google Drive"
 }
 
-// Parameters returns the tool parameter definitions for LLM integration.
-func (t *Tool) Parameters() []registry.ParameterDef {
-	return []registry.ParameterDef{
-		{
-			Name:        "file_path",
-			Type:        "string",
-			Required:    true,
-			Description: "Local path to the file to upload",
+// Schema returns the tool schema for LLM integration.
+func (t *Tool) Schema() registry.ToolSchema {
+	return registry.ToolSchema{
+		Inputs: []registry.Parameter{
+			{
+				Name:        "file_path",
+				Type:        "string",
+				Required:    true,
+				Description: "Local path to the file to upload",
+			},
+			{
+				Name:        "folder_id",
+				Type:        "string",
+				Required:    false,
+				Description: "Google Drive folder ID to upload to (defaults to root)",
+			},
+			{
+				Name:        "name",
+				Type:        "string",
+				Required:    false,
+				Description: "Name for the uploaded file (defaults to original filename)",
+			},
 		},
-		{
-			Name:        "folder_id",
-			Type:        "string",
-			Required:    false,
-			Description: "Google Drive folder ID to upload to (defaults to root)",
-		},
-		{
-			Name:        "name",
-			Type:        "string",
-			Required:    false,
-			Description: "Name for the uploaded file (defaults to original filename)",
+		Outputs: []registry.Parameter{
+			{
+				Name:        "status",
+				Type:        "string",
+				Required:    true,
+				Description: "Upload status",
+			},
+			{
+				Name:        "file_id",
+				Type:        "string",
+				Required:    false,
+				Description: "Google Drive file ID",
+			},
 		},
 	}
 }
@@ -81,7 +97,7 @@ func (t *Tool) Parameters() []registry.ParameterDef {
 //   - file_path: Local path to the file to upload (required)
 //   - folder_id: Google Drive folder ID to upload to (optional)
 //   - name: Name for the uploaded file (optional, defaults to original filename)
-func (t *Tool) Execute(ctx context.Context, params map[string]interface{}) (interface{}, error) {
+func (t *Tool) Execute(ctx context.Context, params map[string]interface{}) (map[string]interface{}, error) {
 	// Context check should be first to fail fast
 	select {
 	case <-ctx.Done():

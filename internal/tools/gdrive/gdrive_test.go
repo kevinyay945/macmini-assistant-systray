@@ -30,16 +30,16 @@ func TestTool_Description(t *testing.T) {
 	}
 }
 
-func TestTool_Parameters(t *testing.T) {
+func TestTool_Schema(t *testing.T) {
 	tool := gdrive.New(gdrive.Config{})
-	params := tool.Parameters()
+	schema := tool.Schema()
 
-	if len(params) != 3 {
-		t.Errorf("Parameters() returned %d params, want 3", len(params))
+	if len(schema.Inputs) != 3 {
+		t.Errorf("Schema().Inputs returned %d params, want 3", len(schema.Inputs))
 	}
 
 	// Check required file_path parameter
-	filePathParam := params[0]
+	filePathParam := schema.Inputs[0]
 	if filePathParam.Name != "file_path" {
 		t.Errorf("First param name = %q, want 'file_path'", filePathParam.Name)
 	}
@@ -48,7 +48,7 @@ func TestTool_Parameters(t *testing.T) {
 	}
 
 	// Check optional parameters
-	folderIDParam := params[1]
+	folderIDParam := schema.Inputs[1]
 	if folderIDParam.Required {
 		t.Error("folder_id parameter should not be required")
 	}
@@ -106,12 +106,7 @@ func TestTool_Execute_ValidRequest(t *testing.T) {
 		t.Errorf("Execute() returned error: %v", err)
 	}
 
-	resultMap, ok := result.(map[string]interface{})
-	if !ok {
-		t.Fatal("Execute() result is not a map")
-	}
-
-	if resultMap["status"] != "pending" {
-		t.Errorf("Execute() status = %v, want 'pending'", resultMap["status"])
+	if result["status"] != "pending" {
+		t.Errorf("Execute() status = %v, want 'pending'", result["status"])
 	}
 }

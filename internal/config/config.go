@@ -6,9 +6,14 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
+	"strings"
 
 	"gopkg.in/yaml.v3"
 )
+
+// DefaultServerPort is the default HTTP server port.
+const DefaultServerPort = 8080
 
 // DefaultConfigPath returns the default configuration file path.
 func DefaultConfigPath() (string, error) {
@@ -17,6 +22,15 @@ func DefaultConfigPath() (string, error) {
 		return "", fmt.Errorf("failed to get home directory: %w", err)
 	}
 	return filepath.Join(homeDir, ".macmini-assistant", "config.yaml"), nil
+}
+
+// DefaultDownloadFolder returns the default download folder path.
+func DefaultDownloadFolder() (string, error) {
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		return "", fmt.Errorf("failed to get home directory: %w", err)
+	}
+	return filepath.Join(homeDir, "Downloads", "macmini-assistant"), nil
 }
 
 // Load reads configuration from the specified path or default location.
@@ -34,8 +48,11 @@ func Load(path string) (*Config, error) {
 		return nil, fmt.Errorf("failed to read config file %s: %w", path, err)
 	}
 
+	// Expand environment variables before parsing
+	expanded := expandEnvVars(string(data))
+
 	var cfg Config
-	if err := yaml.Unmarshal(data, &cfg); err != nil {
+	if err := yaml.Unmarshal([]byte(expanded), &cfg); err != nil {
 		return nil, fmt.Errorf("failed to parse config file: %w", err)
 	}
 
@@ -49,36 +66,178 @@ func Load(path string) (*Config, error) {
 	return &cfg, nil
 }
 
-// DefaultServerPort is the default HTTP server port.
-const DefaultServerPort = 8080
+// expandEnvVars replaces ${VAR_NAME} patterns with environment variable values.
+func expandEnvVars(content string) string {
+	re := regexp.MustCompile(`\$\{([^}]+)\}`)
+	return re.ReplaceAllStringFunc(content, func(match string) string {
+		varName := strings.TrimPrefix(strings.TrimSuffix(match, "}"), "${")
+		return os.Getenv(varName)
+	})
+}
+
+// GenerateDefault creates a default configuration.
+func GenerateDefault() (*Config, error) {
+	downloadFolder, err := DefaultDownloadFolder()
+	if err != nil {
+		return nil, err
+	}
+
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		return nil, err
+	}
+
+	return &Config{
+		App: AppConfig{
+			DownloadFolder: downloadFolder,
+			AutoStart:      true,
+			AutoUpdate:     true,
+			LogLevel:       "info",
+		},
+		Copilot: CopilotConfig{
+			APIKey:         "${GITHUB_COPILOT_API_KEY}",
+			TimeoutSeconds: 600,
+		},
+		LINE: LINEConfig{
+			ChannelSecret: "${LINE_CHANNEL_SECRET}",
+			ChannelToken:  "${LINE_ACCESS_TOKEN}",
+			WebhookPort:   8080,
+		},
+		Discord: DiscordConfig{
+			Token:               "${DISCORD_BOT_TOKEN}",
+			StatusChannelID:     "",
+			EnableSlashCommands: true,
+		},
+		Tools: []ToolConfig{
+			{
+				Name:    "youtube_download",
+				Type:    "downie",
+				Enabled: true,
+				Config: map[string]interface{}{
+					"deep_link_scheme":   "downie://",
+					"default_format":     "mp4",
+					"default_resolution": "1080p",
+				},
+			},
+			{
+				Name:    "gdrive_upload",
+				Type:    "google_drive",
+				Enabled: true,
+				Config: map[string]interface{}{
+					"credentials_path": filepath.Join(homeDir, ".macmini-assistant", "gdrive-creds.json"),
+					"default_timeout":  300,
+				},
+			},
+		},
+		Updater: UpdaterConfig{
+			GitHubRepo:         "username/macmini-assistant",
+			CheckIntervalHours: 6,
+			Enabled:            true,
+		},
+	}, nil
+}
+
+// WriteDefaultConfig generates and writes a default config file to the given path.
+func WriteDefaultConfig(path string) error {
+	cfg, err := GenerateDefault()
+	if err != nil {
+		return fmt.Errorf("failed to generate default config: %w", err)
+	}
+
+	// Create parent directory if it doesn't exist
+	dir := filepath.Dir(path)
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return fmt.Errorf("failed to create config directory: %w", err)
+	}
+
+	data, err := yaml.Marshal(cfg)
+	if err != nil {
+		return fmt.Errorf("failed to marshal config: %w", err)
+	}
+
+	// Add header comment
+	header := "# MacMini Assistant Configuration\n# See docs/phases/phase-1-foundation.md for full schema documentation\n\n"
+
+	if err := os.WriteFile(path, []byte(header+string(data)), 0o644); err != nil {
+		return fmt.Errorf("failed to write config file: %w", err)
+	}
+
+	return nil
+}
 
 // Config represents the application configuration loaded from config.yaml.
 type Config struct {
-	// Server configuration
-	Server ServerConfig `yaml:"server"`
-	// LINE bot configuration
-	LINE LINEConfig `yaml:"line"`
-	// Discord bot configuration
-	Discord DiscordConfig `yaml:"discord"`
-	// Copilot SDK configuration
+	App     AppConfig     `yaml:"app"`
 	Copilot CopilotConfig `yaml:"copilot"`
-	// Tool configurations
-	Tools ToolsConfig `yaml:"tools"`
+	LINE    LINEConfig    `yaml:"line"`
+	Discord DiscordConfig `yaml:"discord"`
+	Tools   []ToolConfig  `yaml:"tools"`
+	Updater UpdaterConfig `yaml:"updater"`
+}
+
+// AppConfig holds general application settings.
+type AppConfig struct {
+	DownloadFolder string `yaml:"download_folder"`
+	AutoStart      bool   `yaml:"auto_start"`
+	AutoUpdate     bool   `yaml:"auto_update"`
+	LogLevel       string `yaml:"log_level"` // debug, info, warn, error
 }
 
 // CopilotConfig holds GitHub Copilot SDK settings.
 type CopilotConfig struct {
-	APIKey  string `yaml:"api_key"`
-	Timeout int    `yaml:"timeout"` // Timeout in seconds, default 600 (10 minutes)
+	APIKey         string `yaml:"api_key"`
+	TimeoutSeconds int    `yaml:"timeout_seconds"` // Timeout in seconds, default 600 (10 minutes)
+}
+
+// LINEConfig holds LINE bot credentials.
+type LINEConfig struct {
+	ChannelSecret string `yaml:"channel_secret"`
+	ChannelToken  string `yaml:"channel_token"`
+	WebhookPort   int    `yaml:"webhook_port"`
+}
+
+// DiscordConfig holds Discord bot credentials.
+type DiscordConfig struct {
+	Token               string `yaml:"bot_token"`
+	StatusChannelID     string `yaml:"status_channel_id"`
+	EnableSlashCommands bool   `yaml:"enable_slash_commands"`
+}
+
+// ToolConfig represents a single tool configuration.
+type ToolConfig struct {
+	Name    string                 `yaml:"name"`
+	Type    string                 `yaml:"type"` // downie, google_drive, etc.
+	Enabled bool                   `yaml:"enabled"`
+	Config  map[string]interface{} `yaml:"config"`
+}
+
+// UpdaterConfig holds auto-updater settings.
+type UpdaterConfig struct {
+	GitHubRepo         string `yaml:"github_repo"`
+	CheckIntervalHours int    `yaml:"check_interval_hours"`
+	Enabled            bool   `yaml:"enabled"`
 }
 
 // applyDefaults sets default values for unset configuration options.
 func (c *Config) applyDefaults() {
-	if c.Server.Port == 0 {
-		c.Server.Port = DefaultServerPort
+	if c.App.LogLevel == "" {
+		c.App.LogLevel = "info"
 	}
-	if c.Copilot.Timeout == 0 {
-		c.Copilot.Timeout = 600 // 10 minutes default
+	if c.App.DownloadFolder == "" {
+		if folder, err := DefaultDownloadFolder(); err == nil {
+			c.App.DownloadFolder = folder
+		} else {
+			c.App.DownloadFolder = "/tmp/downloads"
+		}
+	}
+	if c.Copilot.TimeoutSeconds == 0 {
+		c.Copilot.TimeoutSeconds = 600 // 10 minutes default
+	}
+	if c.LINE.WebhookPort == 0 {
+		c.LINE.WebhookPort = DefaultServerPort
+	}
+	if c.Updater.CheckIntervalHours == 0 {
+		c.Updater.CheckIntervalHours = 6
 	}
 }
 
@@ -86,8 +245,15 @@ func (c *Config) applyDefaults() {
 func (c *Config) Validate() error {
 	var errs []error
 
-	if c.Server.Port < 1 || c.Server.Port > 65535 {
-		errs = append(errs, fmt.Errorf("server.port must be between 1 and 65535, got %d", c.Server.Port))
+	// Validate log level
+	validLogLevels := map[string]bool{"debug": true, "info": true, "warn": true, "error": true}
+	if !validLogLevels[c.App.LogLevel] {
+		errs = append(errs, fmt.Errorf("app.log_level must be one of debug, info, warn, error; got %q", c.App.LogLevel))
+	}
+
+	// Validate webhook port
+	if c.LINE.WebhookPort < 1 || c.LINE.WebhookPort > 65535 {
+		errs = append(errs, fmt.Errorf("line.webhook_port must be between 1 and 65535, got %d", c.LINE.WebhookPort))
 	}
 
 	// LINE credentials require both secret and token
@@ -98,53 +264,67 @@ func (c *Config) Validate() error {
 		errs = append(errs, errors.New("line.channel_secret is required when line.channel_token is set"))
 	}
 
-	if c.Discord.Token != "" && c.Discord.GuildID == "" {
-		errs = append(errs, errors.New("discord.guild_id is required when discord.token is set"))
-	}
-	if c.Discord.GuildID != "" && c.Discord.Token == "" {
-		errs = append(errs, errors.New("discord.token is required when discord.guild_id is set"))
+	// Validate download folder is accessible (or can be created)
+	if c.App.DownloadFolder != "" {
+		if info, err := os.Stat(c.App.DownloadFolder); err == nil {
+			if !info.IsDir() {
+				errs = append(errs, fmt.Errorf("app.download_folder %q exists but is not a directory", c.App.DownloadFolder))
+			}
+		}
+		// It's okay if the folder doesn't exist - we'll create it when needed
 	}
 
-	if c.Tools.GoogleDrive.Enabled {
-		if c.Tools.GoogleDrive.CredentialsPath == "" && c.Tools.GoogleDrive.ServiceAccountPath == "" {
-			errs = append(errs, errors.New("google_drive requires either credentials_path or service_account_path"))
+	// Validate tool configurations
+	toolNames := make(map[string]bool)
+	for i, tool := range c.Tools {
+		switch {
+		case tool.Name == "":
+			errs = append(errs, fmt.Errorf("tools[%d].name is required", i))
+		case toolNames[tool.Name]:
+			errs = append(errs, fmt.Errorf("duplicate tool name: %q", tool.Name))
+		default:
+			toolNames[tool.Name] = true
 		}
+
+		if tool.Type == "" {
+			errs = append(errs, fmt.Errorf("tools[%d].type is required", i))
+		}
+
+		// Validate google_drive tools have credentials
+		if tool.Type == "google_drive" && tool.Enabled {
+			credPath, _ := tool.Config["credentials_path"].(string)
+			svcPath, _ := tool.Config["service_account_path"].(string)
+			if credPath == "" && svcPath == "" {
+				errs = append(errs, fmt.Errorf("tool %q requires credentials_path or service_account_path", tool.Name))
+			}
+		}
+	}
+
+	// Validate updater config
+	if c.Updater.Enabled && c.Updater.GitHubRepo == "" {
+		errs = append(errs, errors.New("updater.github_repo is required when updater is enabled"))
 	}
 
 	return errors.Join(errs...)
 }
 
-// ServerConfig holds HTTP server settings.
-type ServerConfig struct {
-	Port int `yaml:"port"`
+// GetToolConfig returns the configuration for a specific tool by name.
+func (c *Config) GetToolConfig(name string) (*ToolConfig, bool) {
+	for i := range c.Tools {
+		if c.Tools[i].Name == name {
+			return &c.Tools[i], true
+		}
+	}
+	return nil, false
 }
 
-// LINEConfig holds LINE bot credentials.
-type LINEConfig struct {
-	ChannelSecret string `yaml:"channel_secret"`
-	ChannelToken  string `yaml:"channel_token"`
-}
-
-// DiscordConfig holds Discord bot credentials.
-type DiscordConfig struct {
-	Token   string `yaml:"token"`
-	GuildID string `yaml:"guild_id"`
-}
-
-// ToolsConfig holds tool-specific configurations.
-type ToolsConfig struct {
-	Downie      DownieConfig      `yaml:"downie"`
-	GoogleDrive GoogleDriveConfig `yaml:"google_drive"`
-}
-
-// DownieConfig holds Downie tool settings.
-type DownieConfig struct {
-	Enabled bool `yaml:"enabled"`
-}
-
-// GoogleDriveConfig holds Google Drive tool settings.
-type GoogleDriveConfig struct {
-	Enabled            bool   `yaml:"enabled"`
-	CredentialsPath    string `yaml:"credentials_path"`
-	ServiceAccountPath string `yaml:"service_account_path"`
+// GetEnabledTools returns only the enabled tool configurations.
+func (c *Config) GetEnabledTools() []ToolConfig {
+	var enabled []ToolConfig
+	for _, tool := range c.Tools {
+		if tool.Enabled {
+			enabled = append(enabled, tool)
+		}
+	}
+	return enabled
 }

@@ -85,8 +85,9 @@ func runOrchestrator(ctx context.Context) {
 		)
 	} else {
 		logger.Info(ctx, "configuration loaded successfully",
-			"server_port", cfg.Server.Port,
-			"copilot_timeout", cfg.Copilot.Timeout,
+			"webhook_port", cfg.LINE.WebhookPort,
+			"copilot_timeout", cfg.Copilot.TimeoutSeconds,
+			"log_level", cfg.App.LogLevel,
 		)
 	}
 
