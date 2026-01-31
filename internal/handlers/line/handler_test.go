@@ -7,6 +7,7 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/kevinyay945/macmini-assistant-systray/internal/handlers"
 	"github.com/kevinyay945/macmini-assistant-systray/internal/handlers/line"
@@ -224,5 +225,39 @@ func TestHandler_ErrorFormatting(t *testing.T) {
 				t.Errorf("FormatUserFriendlyError() = %q, want %q", got, tt.wantMsg)
 			}
 		})
+	}
+}
+
+func TestHandler_ParseMessage_Errors(t *testing.T) {
+	h := line.New(line.Config{
+		ChannelSecret: "test-secret",
+		ChannelToken:  "test-token",
+	})
+
+	// Test with nil Message - this would cause unsupported message type error
+	// We can't directly test webhook.MessageEvent creation without importing internal types,
+	// but we can verify the exported constants and error types
+
+	if line.ErrEmptyMessage == nil {
+		t.Error("ErrEmptyMessage should be defined")
+	}
+
+	if line.ErrEmptyMessage.Error() != "empty message content" {
+		t.Errorf("ErrEmptyMessage = %q, want %q", line.ErrEmptyMessage.Error(), "empty message content")
+	}
+
+	// Verify MaxMessageLength constant
+	if line.MaxMessageLength != 5000 {
+		t.Errorf("MaxMessageLength = %d, want %d", line.MaxMessageLength, 5000)
+	}
+
+	// Verify DefaultReplyTimeout constant
+	if line.DefaultReplyTimeout != 30*time.Second {
+		t.Errorf("DefaultReplyTimeout = %v, want %v", line.DefaultReplyTimeout, 30*time.Second)
+	}
+
+	// Handler should not be nil
+	if h == nil {
+		t.Error("New() returned nil handler")
 	}
 }

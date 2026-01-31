@@ -231,7 +231,7 @@ func (h *Handler) handleMessageEvent(ctx context.Context, e webhook.MessageEvent
 		resp, err := h.router.Route(ctx, msg)
 		if err != nil {
 			h.logger.Error(ctx, "failed to route message", "error", err)
-			_ = h.sendReply(ctx, e.ReplyToken, formatErrorMessage(err))
+			_ = h.sendReply(ctx, e.ReplyToken, handlers.FormatUserFriendlyError(err))
 			return
 		}
 		if resp != nil && resp.Text != "" {
@@ -354,12 +354,6 @@ func (h *Handler) PushMessage(ctx context.Context, userID string, message string
 	}
 
 	return nil
-}
-
-// formatErrorMessage formats an error into a user-friendly message.
-// Deprecated: Use handlers.FormatUserFriendlyError instead for consistency.
-func formatErrorMessage(err error) string {
-	return handlers.FormatUserFriendlyError(err)
 }
 
 // ParseMessage converts a LINE MessageEvent into a platform-agnostic Message.
