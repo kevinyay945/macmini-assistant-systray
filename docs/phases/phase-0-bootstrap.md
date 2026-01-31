@@ -256,7 +256,7 @@ linters-settings:
   gofmt:
     simplify: true
   goimports:
-    local-prefixes: github.com/username/macmini-assistant-systray
+    local-prefixes: github.com/kevinyay945/macmini-assistant-systray
   revive:
     rules:
       - name: blank-imports
@@ -390,9 +390,9 @@ run:
 # Initialize development environment
 init:
 	@echo "Installing development dependencies..."
-	@go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
-	@go install github.com/goreleaser/goreleaser@latest
-	@brew install pre-commit || true
+	@command -v golangci-lint > /dev/null 2>&1 || go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
+	@command -v goreleaser > /dev/null 2>&1 || go install github.com/goreleaser/goreleaser@latest
+	@command -v pre-commit > /dev/null 2>&1 || brew install pre-commit
 	@pre-commit install
 	@echo "Development environment ready!"
 
@@ -455,7 +455,7 @@ builds:
     main: ./cmd/orchestrator
     binary: orchestrator
     env:
-      - CGO_ENABLED=1
+      - CGO_ENABLED=0
     goos:
       - darwin
     goarch:
@@ -558,7 +558,7 @@ go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
 go install github.com/goreleaser/goreleaser@latest
 
 # pre-commit
-brew install pre-commit
+uv tool install pre-commit
 ```
 
 ---
@@ -566,6 +566,7 @@ brew install pre-commit
 ## Notes & Discoveries
 
 <!-- Add any notes, discoveries, or decisions made during this phase -->
+check tools exist before installing these tools
 
 ### Date: ____
 
