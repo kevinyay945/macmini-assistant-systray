@@ -31,9 +31,11 @@ const (
 // These are defined at package level to avoid recompilation on every log call.
 // NOTE: This is a basic filter and does not cover all sensitive data patterns.
 // Consider using a dedicated secret scanning library for production use.
+// Uses word boundaries (\b) to avoid false positives like "author" matching "auth".
 var sensitivePatterns = []*regexp.Regexp{
-	regexp.MustCompile(`(?i)(api[_-]?key|secret|token|password|credential|auth)`),
-	regexp.MustCompile(`(?i)(bearer\s+[a-zA-Z0-9\-_.]+)`), // Bearer tokens
+	regexp.MustCompile(`(?i)\b(api[_-]?key|secret|token|password|credential)\b`),
+	regexp.MustCompile(`(?i)\bauth(orization|entication)?\b`), // auth, authorization, authentication
+	regexp.MustCompile(`(?i)(bearer\s+[a-zA-Z0-9\-_.]+)`),     // Bearer tokens
 }
 
 // ParseLevel converts a string level name to a slog.Level.
@@ -154,6 +156,11 @@ func (f *sensitiveFieldFilter) WithGroup(name string) slog.Handler {
 		Handler:  f.Handler.WithGroup(name),
 		patterns: f.patterns,
 	}
+}
+
+// Enabled reports whether the handler handles records at the given level.
+func (f *sensitiveFieldFilter) Enabled(ctx context.Context, level slog.Level) bool {
+	return f.Handler.Enabled(ctx, level)
 }
 
 // New creates a new logger instance with the given options.

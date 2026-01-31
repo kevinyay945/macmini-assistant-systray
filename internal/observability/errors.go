@@ -75,15 +75,31 @@ func (e *AppError) Is(target error) bool {
 
 // copyExtra creates a deep copy of the Extra map.
 // Returns nil if the input map is nil.
+// Recursively copies nested maps and slices to prevent shared mutations.
 func copyExtra(extra map[string]interface{}) map[string]interface{} {
 	if extra == nil {
 		return nil
 	}
-	copy := make(map[string]interface{}, len(extra))
+	result := make(map[string]interface{}, len(extra))
 	for k, v := range extra {
-		copy[k] = v
+		switch typed := v.(type) {
+		case map[string]interface{}:
+			result[k] = copyExtra(typed)
+		case []interface{}:
+			cp := make([]interface{}, len(typed))
+			for i, item := range typed {
+				if nested, ok := item.(map[string]interface{}); ok {
+					cp[i] = copyExtra(nested)
+				} else {
+					cp[i] = item
+				}
+			}
+			result[k] = cp
+		default:
+			result[k] = v
+		}
 	}
-	return copy
+	return result
 }
 
 // WithCause returns a new AppError with the cause attached.

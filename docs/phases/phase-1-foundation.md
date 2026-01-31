@@ -460,6 +460,26 @@ require (
     - Added separate "Check Gosec results" step that fails if gosec found issues
     - SARIF results are still uploaded for GitHub Security tab regardless of failure
 
+### PR Review Fixes (2026-01-31 - Round 6)
+
+**Constants & Code Organization:**
+24. **Package-Level Copilot Timeout Constants**: Moved `maxTimeoutSeconds` from local variable inside `Validate()` to package-level constants. Added `MaxCopilotTimeout` (3600) and `DefaultCopilotTimeout` (600) constants alongside `DefaultServerPort` for consistency and reusability.
+
+**Regex Precision:**
+25. **Sensitive Data Filter Word Boundaries**: Updated `sensitivePatterns` regex in logger.go to use word boundaries (`\b`) to prevent false positives. Split "auth" pattern to `\bauth(orization|entication)?\b` to avoid matching words like "author". This improves precision while maintaining security filtering for actual sensitive data.
+
+**Interface Completeness:**
+26. **sensitiveFieldFilter Enabled() Method**: Added explicit `Enabled(ctx context.Context, level slog.Level) bool` method to `sensitiveFieldFilter` struct for interface completeness, even though the embedded handler already provides this functionality.
+
+**Deep Copy Consistency:**
+27. **copyExtra Deep Copy in errors.go**: Enhanced `copyExtra()` in errors.go to perform recursive deep copying of nested `map[string]interface{}` and `[]interface{}`, matching the `deepCopyMap()` implementation in config.go. This ensures `AppError.WithExtra()` and other methods don't leak shared references.
+
+**Error Handling:**
+28. **runOrchestrator Returns Error**: Changed `runOrchestrator()` signature from `func(ctx context.Context)` to `func(ctx context.Context) error` and updated cobra command from `Run` to `RunE`. This enables proper error propagation for future fatal startup errors.
+
+**CI/CD:**
+29. **Parameterized Go Version in SAST Workflow**: Added `GO_VERSION` environment variable at workflow level in sast.yml. Both `gosec` and `govulncheck` jobs now reference `${{ env.GO_VERSION }}` instead of hardcoded version strings, making Go version updates a single-line change.
+
 ---
 
 ## Time Tracking

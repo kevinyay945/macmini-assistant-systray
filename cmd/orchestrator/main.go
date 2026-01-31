@@ -38,8 +38,8 @@ func run() int {
 
 This application provides remote task automation through LINE and Discord
 messaging platforms, powered by GitHub Copilot SDK.`,
-		Run: func(cmd *cobra.Command, _ []string) {
-			runOrchestrator(cmd.Context())
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			return runOrchestrator(cmd.Context())
 		},
 	}
 
@@ -64,7 +64,8 @@ messaging platforms, powered by GitHub Copilot SDK.`,
 }
 
 // runOrchestrator starts the main application loop with context support.
-func runOrchestrator(ctx context.Context) {
+// Returns an error if a fatal error occurs during startup.
+func runOrchestrator(ctx context.Context) error {
 	// Initialize logger
 	logger := observability.New(
 		observability.WithLevel(observability.LevelInfo),
@@ -83,6 +84,7 @@ func runOrchestrator(ctx context.Context) {
 			"error", err,
 			"hint", "Create ~/.macmini-assistant/config.yaml to configure the application",
 		)
+		// Not a fatal error - continue with defaults
 	} else {
 		logger.Info(ctx, "configuration loaded successfully",
 			"webhook_port", cfg.LINE.WebhookPort,
@@ -96,4 +98,5 @@ func runOrchestrator(ctx context.Context) {
 	// Wait for context cancellation (signal received)
 	<-ctx.Done()
 	logger.Info(ctx, "Shutting down gracefully...")
+	return nil
 }

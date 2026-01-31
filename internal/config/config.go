@@ -15,6 +15,12 @@ import (
 // DefaultServerPort is the default HTTP server port.
 const DefaultServerPort = 8080
 
+// MaxCopilotTimeout is the maximum allowed timeout for Copilot requests (1 hour).
+const MaxCopilotTimeout = 3600
+
+// DefaultCopilotTimeout is the default timeout for Copilot requests (10 minutes).
+const DefaultCopilotTimeout = 600
+
 // envVarPattern is a pre-compiled regex for environment variable substitution.
 // Defined at package level to avoid recompilation on every call to expandEnvVars.
 var envVarPattern = regexp.MustCompile(`\$\{([^}]+)\}`)
@@ -255,7 +261,7 @@ func (c *Config) applyDefaults() {
 		}
 	}
 	if c.Copilot.TimeoutSeconds == 0 {
-		c.Copilot.TimeoutSeconds = 600 // 10 minutes default
+		c.Copilot.TimeoutSeconds = DefaultCopilotTimeout
 	}
 	if c.LINE.WebhookPort == 0 {
 		c.LINE.WebhookPort = DefaultServerPort
@@ -332,9 +338,8 @@ func (c *Config) Validate() error {
 	if c.Copilot.TimeoutSeconds < 0 {
 		errs = append(errs, errors.New("copilot.timeout_seconds cannot be negative"))
 	}
-	const maxTimeoutSeconds = 3600 // 1 hour maximum
-	if c.Copilot.TimeoutSeconds > maxTimeoutSeconds {
-		errs = append(errs, fmt.Errorf("copilot.timeout_seconds exceeds maximum (%d), got %d", maxTimeoutSeconds, c.Copilot.TimeoutSeconds))
+	if c.Copilot.TimeoutSeconds > MaxCopilotTimeout {
+		errs = append(errs, fmt.Errorf("copilot.timeout_seconds exceeds maximum (%d), got %d", MaxCopilotTimeout, c.Copilot.TimeoutSeconds))
 	}
 
 	// Validate updater config

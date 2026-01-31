@@ -3,7 +3,7 @@ tools: ["search/codebase", "search/changes", "read/problems", "execute/getTermin
 model: Claude Opus 4.5 (copilot)
 ---
 
-@workspace code review by run the command ```git --no-pager diff main...HEAD --no-color ``` , if there are any suggest, give me the link to reference to the target file and target line in this #codebase
+@workspace code review by run the command ```git --no-pager diff --name-only main...HEAD --no-color ``` , if there are any suggest, give me the link to reference to the target file and target line in this #codebase
 this reference link should use relative path
 don't edit my file, only suggestion and example code
 use zh-tw to reply

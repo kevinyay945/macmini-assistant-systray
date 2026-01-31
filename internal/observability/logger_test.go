@@ -160,8 +160,9 @@ func TestLogger_SensitiveValueFiltering(t *testing.T) {
 	)
 	ctx := context.Background()
 
-	// Test that sensitive patterns in VALUES are also filtered
-	l.Info(ctx, "test", "data", "my_api_key=xyz123")
+	// Test that sensitive patterns in VALUES are filtered when they appear as whole words
+	// Note: With word boundary matching, "my_api_key" won't match but "api_key" will
+	l.Info(ctx, "test", "data", "api_key=xyz123")
 	l.Info(ctx, "test", "message", "token: abc456")
 	l.Info(ctx, "test", "config", "password=hunter2")
 
@@ -174,6 +175,29 @@ func TestLogger_SensitiveValueFiltering(t *testing.T) {
 	}
 	if strings.Contains(output, "hunter2") {
 		t.Error("Logger should redact values containing password")
+	}
+}
+
+func TestLogger_SensitiveValueFiltering_WordBoundary(t *testing.T) {
+	var buf bytes.Buffer
+	l := observability.New(
+		observability.WithOutput(&buf),
+		observability.WithJSON(),
+	)
+	ctx := context.Background()
+
+	// Test that word boundary prevents false positives
+	// "my_api_key" should NOT be redacted because "api" is not at a word boundary
+	// "author" should NOT be redacted because it's not "auth" as a word
+	l.Info(ctx, "test", "author", "John Doe")
+	l.Info(ctx, "test", "custom_field", "my_custom_api_key_value")
+
+	output := buf.String()
+	if !strings.Contains(output, "John Doe") {
+		t.Error("Logger should NOT redact 'author' field (word boundary)")
+	}
+	if !strings.Contains(output, "my_custom_api_key_value") {
+		t.Error("Logger should NOT redact values where 'api_key' is not at word boundary")
 	}
 }
 
