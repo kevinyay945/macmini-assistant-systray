@@ -54,3 +54,4 @@ Lib:
 - github.com/spf13/cobra.git
 - github.com/line/line-bot-sdk-go/v8/linebot
 - github.com/inconshreveable/go-update
+- github.com/bwmarrin/discordgo
