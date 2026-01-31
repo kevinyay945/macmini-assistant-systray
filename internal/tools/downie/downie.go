@@ -1,14 +1,27 @@
 // Package downie provides video download functionality via Downie deep links.
 package downie
 
+import (
+	"context"
+	"errors"
+	"fmt"
+)
+
 // Tool implements the Downie video download tool.
 type Tool struct {
-	// TODO: Add Downie configuration fields
+	enabled bool
+}
+
+// Config holds Downie tool configuration.
+type Config struct {
+	Enabled bool
 }
 
 // New creates a new Downie tool instance.
-func New() *Tool {
-	return &Tool{}
+func New(cfg Config) *Tool {
+	return &Tool{
+		enabled: cfg.Enabled,
+	}
 }
 
 // Name returns the tool name.
@@ -22,7 +35,31 @@ func (t *Tool) Description() string {
 }
 
 // Execute runs the Downie download with the given parameters.
-func (t *Tool) Execute(params map[string]interface{}) (interface{}, error) {
+// Parameters:
+//   - url: The video URL to download (required)
+//   - format: Output format (optional, default: mp4)
+//   - resolution: Video resolution (optional, default: 1080p)
+func (t *Tool) Execute(ctx context.Context, params map[string]interface{}) (interface{}, error) {
+	if !t.enabled {
+		return nil, errors.New("downie tool is not enabled")
+	}
+
+	// Check context cancellation
+	select {
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	default:
+	}
+
+	url, ok := params["url"].(string)
+	if !ok || url == "" {
+		return nil, errors.New("url parameter is required")
+	}
+
 	// TODO: Implement Downie deep link execution
-	return nil, nil
+	// Format: downie://XcallbackURL/open?url=<encoded_url>
+	return map[string]interface{}{
+		"status":  "pending",
+		"message": fmt.Sprintf("Download request queued for: %s", url),
+	}, nil
 }

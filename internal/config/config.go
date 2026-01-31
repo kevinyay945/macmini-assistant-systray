@@ -1,6 +1,51 @@
 // Package config handles application configuration loading and validation.
 package config
 
+import (
+	"errors"
+	"fmt"
+	"os"
+	"path/filepath"
+
+	"gopkg.in/yaml.v3"
+)
+
+// DefaultConfigPath returns the default configuration file path.
+func DefaultConfigPath() (string, error) {
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		return "", fmt.Errorf("failed to get home directory: %w", err)
+	}
+	return filepath.Join(homeDir, ".macmini-assistant", "config.yaml"), nil
+}
+
+// Load reads configuration from the specified path or default location.
+func Load(path string) (*Config, error) {
+	if path == "" {
+		var err error
+		path, err = DefaultConfigPath()
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read config file %s: %w", path, err)
+	}
+
+	var cfg Config
+	if err := yaml.Unmarshal(data, &cfg); err != nil {
+		return nil, fmt.Errorf("failed to parse config file: %w", err)
+	}
+
+	if err := cfg.Validate(); err != nil {
+		return nil, fmt.Errorf("invalid configuration: %w", err)
+	}
+
+	return &cfg, nil
+}
+
 // Config represents the application configuration loaded from config.yaml.
 type Config struct {
 	// Server configuration
@@ -11,6 +56,31 @@ type Config struct {
 	Discord DiscordConfig `yaml:"discord"`
 	// Tool configurations
 	Tools ToolsConfig `yaml:"tools"`
+}
+
+// Validate checks if the configuration is valid.
+func (c *Config) Validate() error {
+	var errs []error
+
+	if c.Server.Port < 1 || c.Server.Port > 65535 {
+		errs = append(errs, fmt.Errorf("server.port must be between 1 and 65535, got %d", c.Server.Port))
+	}
+
+	if c.LINE.ChannelSecret != "" && c.LINE.ChannelToken == "" {
+		errs = append(errs, errors.New("line.channel_token is required when line.channel_secret is set"))
+	}
+
+	if c.Discord.Token != "" && c.Discord.GuildID == "" {
+		errs = append(errs, errors.New("discord.guild_id is required when discord.token is set"))
+	}
+
+	if c.Tools.GoogleDrive.Enabled {
+		if c.Tools.GoogleDrive.CredentialsPath == "" && c.Tools.GoogleDrive.ServiceAccountPath == "" {
+			errs = append(errs, errors.New("google_drive requires either credentials_path or service_account_path"))
+		}
+	}
+
+	return errors.Join(errs...)
 }
 
 // ServerConfig holds HTTP server settings.

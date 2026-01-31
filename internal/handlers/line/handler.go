@@ -1,18 +1,37 @@
 // Package line provides LINE bot webhook handling.
 package line
 
+import (
+	"net/http"
+)
+
 // Handler processes LINE bot webhook events.
 type Handler struct {
-	// TODO: Add LINE bot client fields
+	channelSecret string
+	channelToken  string
+}
+
+// Config holds LINE handler configuration.
+type Config struct {
+	ChannelSecret string
+	ChannelToken  string
 }
 
 // New creates a new LINE webhook handler.
-func New() *Handler {
-	return &Handler{}
+func New(cfg Config) *Handler {
+	return &Handler{
+		channelSecret: cfg.ChannelSecret,
+		channelToken:  cfg.ChannelToken,
+	}
 }
 
 // HandleWebhook processes incoming LINE webhook requests.
-func (h *Handler) HandleWebhook() error {
+// This is designed to be used with net/http or any HTTP framework.
+func (h *Handler) HandleWebhook(w http.ResponseWriter, r *http.Request) {
 	// TODO: Implement LINE webhook handling
-	return nil
+	// 1. Validate X-Line-Signature header
+	// 2. Parse webhook events from request body
+	// 3. Process each event (message, follow, unfollow, etc.)
+	// 4. Return 200 OK to LINE
+	w.WriteHeader(http.StatusOK)
 }
