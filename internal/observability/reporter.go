@@ -101,21 +101,22 @@ const DefaultReportTimeout = 5 * time.Second
 // Report sends the error to all reporters concurrently with a timeout.
 // If reporters don't complete within the timeout, the function returns anyway.
 func (m *MultiReporter) Report(ctx context.Context, err error) {
-	m.reportWithTimeout(ctx, func(reporter ErrorReporter) {
-		reporter.Report(ctx, err)
+	m.reportWithTimeout(ctx, func(timeoutCtx context.Context, reporter ErrorReporter) {
+		reporter.Report(timeoutCtx, err)
 	})
 }
 
 // ReportWithContext sends the error with context to all reporters concurrently with a timeout.
 // If reporters don't complete within the timeout, the function returns anyway.
 func (m *MultiReporter) ReportWithContext(ctx context.Context, err error, extra map[string]interface{}) {
-	m.reportWithTimeout(ctx, func(reporter ErrorReporter) {
-		reporter.ReportWithContext(ctx, err, extra)
+	m.reportWithTimeout(ctx, func(timeoutCtx context.Context, reporter ErrorReporter) {
+		reporter.ReportWithContext(timeoutCtx, err, extra)
 	})
 }
 
 // reportWithTimeout executes the report function on all reporters with a timeout.
-func (m *MultiReporter) reportWithTimeout(ctx context.Context, reportFn func(ErrorReporter)) {
+// The reportFn receives the timeout context so individual reporters can detect cancellation.
+func (m *MultiReporter) reportWithTimeout(ctx context.Context, reportFn func(context.Context, ErrorReporter)) {
 	timeoutCtx, cancel := context.WithTimeout(ctx, m.timeout)
 	defer cancel()
 
@@ -124,7 +125,13 @@ func (m *MultiReporter) reportWithTimeout(ctx context.Context, reportFn func(Err
 		wg.Add(1)
 		go func(reporter ErrorReporter) {
 			defer wg.Done()
-			reportFn(reporter)
+			// Check if already cancelled before starting
+			select {
+			case <-timeoutCtx.Done():
+				return
+			default:
+			}
+			reportFn(timeoutCtx, reporter)
 		}(r)
 	}
 
@@ -138,6 +145,6 @@ func (m *MultiReporter) reportWithTimeout(ctx context.Context, reportFn func(Err
 	case <-done:
 		// All reporters completed
 	case <-timeoutCtx.Done():
-		// Timeout reached, some reporters may still be running
+		// Timeout reached, some reporters may still be running but will see cancelled context
 	}
 }

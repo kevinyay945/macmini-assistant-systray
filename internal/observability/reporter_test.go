@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -209,16 +210,22 @@ func TestMultiReporter_WithTimeout(t *testing.T) {
 }
 
 // trackingTestReporter tracks when Report is called.
+// Uses sync.Once to safely close the channel even if both Report and ReportWithContext are called.
 type trackingTestReporter struct {
-	doneCh chan struct{}
+	doneCh    chan struct{}
+	closeOnce sync.Once
 }
 
 func (tr *trackingTestReporter) Report(_ context.Context, _ error) {
-	close(tr.doneCh)
+	tr.closeOnce.Do(func() {
+		close(tr.doneCh)
+	})
 }
 
 func (tr *trackingTestReporter) ReportWithContext(_ context.Context, _ error, _ map[string]interface{}) {
-	close(tr.doneCh)
+	tr.closeOnce.Do(func() {
+		close(tr.doneCh)
+	})
 }
 
 // slowTestReporter is a test reporter that deliberately takes a long time.

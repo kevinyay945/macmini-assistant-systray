@@ -60,44 +60,61 @@ func (e *AppError) Is(target error) bool {
 	return e.Code == t.Code
 }
 
+// copyExtra creates a deep copy of the Extra map.
+// Returns nil if the input map is nil.
+func copyExtra(extra map[string]interface{}) map[string]interface{} {
+	if extra == nil {
+		return nil
+	}
+	copy := make(map[string]interface{}, len(extra))
+	for k, v := range extra {
+		copy[k] = v
+	}
+	return copy
+}
+
 // WithCause returns a new AppError with the cause attached.
+// The Extra map is deep-copied to prevent shared mutations.
 func (e *AppError) WithCause(err error) *AppError {
 	return &AppError{
 		Code:      e.Code,
 		Message:   e.Message,
 		Cause:     err,
 		RequestID: e.RequestID,
-		Extra:     e.Extra,
+		Extra:     copyExtra(e.Extra),
 	}
 }
 
 // WithMessage returns a new AppError with a custom message.
+// The Extra map is deep-copied to prevent shared mutations.
 func (e *AppError) WithMessage(msg string) *AppError {
 	return &AppError{
 		Code:      e.Code,
 		Message:   msg,
 		Cause:     e.Cause,
 		RequestID: e.RequestID,
-		Extra:     e.Extra,
+		Extra:     copyExtra(e.Extra),
 	}
 }
 
 // WithRequestID returns a new AppError with the request ID attached.
+// The Extra map is deep-copied to prevent shared mutations.
 func (e *AppError) WithRequestID(id string) *AppError {
 	return &AppError{
 		Code:      e.Code,
 		Message:   e.Message,
 		Cause:     e.Cause,
 		RequestID: id,
-		Extra:     e.Extra,
+		Extra:     copyExtra(e.Extra),
 	}
 }
 
 // WithExtra returns a new AppError with additional context.
+// The Extra map is deep-copied to prevent shared mutations.
 func (e *AppError) WithExtra(key string, value interface{}) *AppError {
-	extra := make(map[string]interface{})
-	for k, v := range e.Extra {
-		extra[k] = v
+	extra := copyExtra(e.Extra)
+	if extra == nil {
+		extra = make(map[string]interface{})
 	}
 	extra[key] = value
 

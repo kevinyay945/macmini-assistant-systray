@@ -72,6 +72,7 @@ func Load(path string) (*Config, error) {
 
 // expandEnvVars replaces ${VAR_NAME} and ${VAR_NAME:-default} patterns with environment variable values.
 // Supports default values using the syntax ${VAR:-default_value}.
+// Uses os.LookupEnv to distinguish between "not set" and "set to empty string".
 // NOTE: Nested variable substitution (e.g., ${VAR1:-${VAR2}}) is NOT supported.
 func expandEnvVars(content string) string {
 	return envVarPattern.ReplaceAllStringFunc(content, func(match string) string {
@@ -80,12 +81,15 @@ func expandEnvVars(content string) string {
 		if idx := strings.Index(inner, ":-"); idx != -1 {
 			varName := inner[:idx]
 			defaultVal := inner[idx+2:]
-			if val := os.Getenv(varName); val != "" {
+			if val, ok := os.LookupEnv(varName); ok {
 				return val
 			}
 			return defaultVal
 		}
-		return os.Getenv(inner)
+		if val, ok := os.LookupEnv(inner); ok {
+			return val
+		}
+		return ""
 	})
 }
 
@@ -326,13 +330,26 @@ func (c *Config) Validate() error {
 	return errors.Join(errs...)
 }
 
-// GetToolConfig returns a copy of the configuration for a specific tool by name.
+// GetToolConfig returns a deep copy of the configuration for a specific tool by name.
 // Returns a copy to prevent callers from accidentally modifying the original config
 // or holding a dangling pointer if the config's Tools slice is reallocated.
+// The Config map is deep-copied to ensure full immutability.
 func (c *Config) GetToolConfig(name string) (ToolConfig, bool) {
 	for _, tool := range c.Tools {
 		if tool.Name == name {
-			return tool, true
+			// Deep copy the tool config including the Config map
+			copy := ToolConfig{
+				Name:    tool.Name,
+				Type:    tool.Type,
+				Enabled: tool.Enabled,
+			}
+			if tool.Config != nil {
+				copy.Config = make(map[string]interface{}, len(tool.Config))
+				for k, v := range tool.Config {
+					copy.Config[k] = v
+				}
+			}
+			return copy, true
 		}
 	}
 	return ToolConfig{}, false
