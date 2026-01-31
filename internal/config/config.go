@@ -76,7 +76,13 @@ func Load(path string) (*Config, error) {
 // NOTE: Nested variable substitution (e.g., ${VAR1:-${VAR2}}) is NOT supported.
 func expandEnvVars(content string) string {
 	return envVarPattern.ReplaceAllStringFunc(content, func(match string) string {
-		inner := strings.TrimPrefix(strings.TrimSuffix(match, "}"), "${")
+		// Use FindStringSubmatch to get the capture group directly
+		// instead of TrimPrefix/TrimSuffix for better performance
+		matches := envVarPattern.FindStringSubmatch(match)
+		if len(matches) < 2 {
+			return match
+		}
+		inner := matches[1]
 		// Support ${VAR:-default} syntax
 		if idx := strings.Index(inner, ":-"); idx != -1 {
 			varName := inner[:idx]

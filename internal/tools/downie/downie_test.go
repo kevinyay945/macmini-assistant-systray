@@ -55,6 +55,43 @@ func TestTool_Schema(t *testing.T) {
 	if formatParam.Default != "mp4" {
 		t.Errorf("format default = %v, want 'mp4'", formatParam.Default)
 	}
+
+	// Check format parameter has Allowed values
+	if len(formatParam.Allowed) == 0 {
+		t.Error("format parameter should have Allowed values")
+	}
+	expectedFormats := []string{"mp4", "mkv", "webm", "m4v"}
+	for _, fmt := range expectedFormats {
+		found := false
+		for _, allowed := range formatParam.Allowed {
+			if allowed == fmt {
+				found = true
+				break
+			}
+		}
+		if !found {
+			t.Errorf("format Allowed should include %q", fmt)
+		}
+	}
+
+	// Check resolution parameter has Allowed values
+	resParam := schema.Inputs[2]
+	if len(resParam.Allowed) == 0 {
+		t.Error("resolution parameter should have Allowed values")
+	}
+	expectedResolutions := []string{"2160p", "1440p", "1080p", "720p", "480p", "360p"}
+	for _, res := range expectedResolutions {
+		found := false
+		for _, allowed := range resParam.Allowed {
+			if allowed == res {
+				found = true
+				break
+			}
+		}
+		if !found {
+			t.Errorf("resolution Allowed should include %q", res)
+		}
+	}
 }
 
 func TestTool_Execute_NotEnabled(t *testing.T) {

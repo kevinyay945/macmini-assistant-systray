@@ -209,8 +209,13 @@ func (r *Registry) Execute(ctx context.Context, name string, params map[string]i
 		}
 	}
 
+	// Read timeout with lock to prevent race condition with SetTimeout
+	r.mu.RLock()
+	timeout := r.timeout
+	r.mu.RUnlock()
+
 	// Apply timeout
-	timeoutCtx, cancel := context.WithTimeout(ctx, r.timeout)
+	timeoutCtx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 
 	// Create result channel
@@ -232,7 +237,7 @@ func (r *Registry) Execute(ctx context.Context, name string, params map[string]i
 	select {
 	case <-timeoutCtx.Done():
 		if errors.Is(timeoutCtx.Err(), context.DeadlineExceeded) {
-			return nil, fmt.Errorf("%w: %s after %v", ErrToolTimeout, name, r.timeout)
+			return nil, fmt.Errorf("%w: %s after %v", ErrToolTimeout, name, timeout)
 		}
 		return nil, timeoutCtx.Err()
 	case res := <-resultCh:

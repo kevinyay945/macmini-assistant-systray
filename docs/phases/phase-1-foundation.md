@@ -439,6 +439,27 @@ require (
 - **Deep Copy for GetToolConfig**: `deepCopyMap()` recursively copies nested maps and slices in `ToolConfig.Config`
 - **AppError Extra Map Copying**: All `With*` methods use `copyExtra()` to prevent shared mutations
 
+### PR Review Fixes (2026-01-31 - Round 5)
+
+**Thread Safety:**
+20. **Registry Execute Race Condition Fix**: Fixed race condition in `Registry.Execute()` where `r.timeout` was accessed without holding the read lock. Now properly acquires `mu.RLock()` before reading the timeout value, then releases the lock before creating the timeout context. This prevents data races when `SetTimeout()` is called concurrently with `Execute()`.
+
+**Performance:**
+21. **expandEnvVars Regex Optimization**: Optimized `expandEnvVars()` to use `FindStringSubmatch()` to extract the capture group directly instead of using `TrimPrefix()`/`TrimSuffix()`. This avoids redundant string manipulation since the regex already captures the variable name.
+
+**Type Safety & Validation:**
+22. **Downie Tool Allowed Values**: Added `Allowed` field to Downie tool's `format` and `resolution` parameters to enable enum validation:
+    - `format`: `["mp4", "mkv", "webm", "m4v"]`
+    - `resolution`: `["2160p", "1440p", "1080p", "720p", "480p", "360p"]`
+    This ensures invalid format/resolution values are rejected early during parameter validation in `Registry.Execute()`.
+
+**CI/CD:**
+23. **SAST Workflow Fail-on-Error**: Modified Gosec scanner configuration to properly fail CI when security issues are found:
+    - Removed `-no-fail` flag from gosec args
+    - Added `continue-on-error: true` to capture results before failing
+    - Added separate "Check Gosec results" step that fails if gosec found issues
+    - SARIF results are still uploaded for GitHub Security tab regardless of failure
+
 ---
 
 ## Time Tracking
