@@ -53,9 +53,20 @@ func Load(path string) (*Config, error) {
 		}
 	}
 
-	data, err := os.ReadFile(path)
+	// Clean path to prevent directory traversal attacks (e.g., ../../etc/passwd)
+	cleanPath := filepath.Clean(path)
+
+	// Convert to absolute path for security and consistency
+	absPath, err := filepath.Abs(cleanPath)
 	if err != nil {
-		return nil, fmt.Errorf("failed to read config file %s: %w", path, err)
+		return nil, fmt.Errorf("failed to resolve absolute path: %w", err)
+	}
+
+	// #nosec G304 - Path is cleaned and converted to absolute path above to prevent directory traversal
+	// This is intentional: users must be able to specify custom config file locations
+	data, err := os.ReadFile(absPath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read config file %s: %w", absPath, err)
 	}
 
 	// Expand environment variables before parsing

@@ -76,6 +76,7 @@ func TestLineHandler_EmptyMessage(t *testing.T)
 ### Notes
 
 <!-- Add your notes here -->
+please show me how to setup the cert
 
 ---
 
@@ -199,6 +200,7 @@ func TestDiscordHandler_DirectMessage(t *testing.T)
 ### Notes
 
 <!-- Add your notes here -->
+please show me how to setup the cert
 
 ---
 
