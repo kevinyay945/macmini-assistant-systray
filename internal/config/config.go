@@ -68,6 +68,7 @@ func Load(path string) (*Config, error) {
 
 // expandEnvVars replaces ${VAR_NAME} and ${VAR_NAME:-default} patterns with environment variable values.
 // Supports default values using the syntax ${VAR:-default_value}.
+// NOTE: Nested variable substitution (e.g., ${VAR1:-${VAR2}}) is NOT supported.
 func expandEnvVars(content string) string {
 	re := regexp.MustCompile(`\$\{([^}]+)\}`)
 	return re.ReplaceAllStringFunc(content, func(match string) string {

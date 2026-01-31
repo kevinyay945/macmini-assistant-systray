@@ -51,12 +51,13 @@ func (e *AppError) Unwrap() error {
 }
 
 // Is implements errors.Is support.
+// Two AppErrors are considered equal if they have the same Code.
 func (e *AppError) Is(target error) bool {
-	var appErr *AppError
-	if errors.As(target, &appErr) {
-		return e.Code == appErr.Code
+	t, ok := target.(*AppError)
+	if !ok {
+		return false
 	}
-	return false
+	return e.Code == t.Code
 }
 
 // WithCause returns a new AppError with the cause attached.

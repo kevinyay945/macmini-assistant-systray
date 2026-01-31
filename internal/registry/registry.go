@@ -202,7 +202,7 @@ func (r *Registry) Execute(ctx context.Context, name string, params map[string]i
 			continue
 		}
 		// Validate parameter type
-		if err := validateParamType(val, param.Type); err != nil {
+		if err := validateParamType(val, param.Type, param.Allowed); err != nil {
 			return nil, fmt.Errorf("%w for parameter %s: %w", ErrInvalidParamType, param.Name, err)
 		}
 	}
@@ -220,11 +220,10 @@ func (r *Registry) Execute(ctx context.Context, name string, params map[string]i
 
 	go func() {
 		output, err := tool.Execute(timeoutCtx, execParams)
-		// Use select with default to avoid blocking if channel is full or context cancelled
 		select {
 		case resultCh <- result{output, err}:
-		default:
-			// Channel full or timeout already triggered, discard result
+		case <-timeoutCtx.Done():
+			// Context cancelled, discard result and exit
 		}
 	}()
 
@@ -240,15 +239,26 @@ func (r *Registry) Execute(ctx context.Context, name string, params map[string]i
 }
 
 // validateParamType validates that a value matches the expected parameter type.
-func validateParamType(val interface{}, expectedType string) error {
+// If allowed is non-empty and the value is a string, it also validates against allowed values.
+func validateParamType(val interface{}, expectedType string, allowed []string) error {
 	if val == nil {
 		return nil // nil is acceptable for optional params
 	}
 
 	switch expectedType {
 	case "string":
-		if _, ok := val.(string); !ok {
+		strVal, ok := val.(string)
+		if !ok {
 			return fmt.Errorf("expected string, got %T", val)
+		}
+		// Validate against allowed values if specified
+		if len(allowed) > 0 {
+			for _, a := range allowed {
+				if strVal == a {
+					return nil
+				}
+			}
+			return fmt.Errorf("value %q not in allowed values: %v", strVal, allowed)
 		}
 	case "integer":
 		// Handle int, int64, float64 (JSON unmarshal produces float64 for numbers)
@@ -262,6 +272,14 @@ func validateParamType(val interface{}, expectedType string) error {
 			}
 		default:
 			return fmt.Errorf("expected integer, got %T", val)
+		}
+	case "number":
+		// Handle any numeric type (int or float)
+		switch val.(type) {
+		case float32, float64, int, int32, int64:
+			// ok
+		default:
+			return fmt.Errorf("expected number, got %T", val)
 		}
 	case "boolean":
 		if _, ok := val.(bool); !ok {

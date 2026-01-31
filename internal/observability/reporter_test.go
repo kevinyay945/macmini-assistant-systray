@@ -182,6 +182,32 @@ func TestMultiReporter_Timeout(t *testing.T) {
 	}
 }
 
+func TestMultiReporter_WithTimeout(t *testing.T) {
+	// Test that custom timeout can be set
+	fastReporterDone := make(chan struct{}, 1)
+	fastReporter := &trackingTestReporter{doneCh: fastReporterDone}
+
+	// Create a slow reporter
+	slowReporter := &slowTestReporter{delay: 5 * time.Second}
+
+	// Use a shorter custom timeout
+	reporter := observability.NewMultiReporter(
+		fastReporter,
+		slowReporter,
+	).WithTimeout(100 * time.Millisecond)
+
+	ctx := context.Background()
+
+	start := time.Now()
+	reporter.Report(ctx, errors.New("custom timeout test"))
+	elapsed := time.Since(start)
+
+	// Should complete within the custom timeout (100ms) + some buffer
+	if elapsed > 500*time.Millisecond {
+		t.Errorf("MultiReporter with custom timeout took too long: %v (expected < 500ms)", elapsed)
+	}
+}
+
 // trackingTestReporter tracks when Report is called.
 type trackingTestReporter struct {
 	doneCh chan struct{}

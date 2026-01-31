@@ -76,11 +76,23 @@ func (r *LogReporter) ReportWithContext(ctx context.Context, err error, extra ma
 // MultiReporter sends errors to multiple reporters.
 type MultiReporter struct {
 	reporters []ErrorReporter
+	timeout   time.Duration
 }
 
 // NewMultiReporter creates a reporter that sends to multiple destinations.
 func NewMultiReporter(reporters ...ErrorReporter) *MultiReporter {
-	return &MultiReporter{reporters: reporters}
+	return &MultiReporter{
+		reporters: reporters,
+		timeout:   DefaultReportTimeout,
+	}
+}
+
+// WithTimeout returns a new MultiReporter with the specified timeout.
+func (m *MultiReporter) WithTimeout(d time.Duration) *MultiReporter {
+	return &MultiReporter{
+		reporters: m.reporters,
+		timeout:   d,
+	}
 }
 
 // DefaultReportTimeout is the default timeout for multi-reporter operations.
@@ -104,7 +116,7 @@ func (m *MultiReporter) ReportWithContext(ctx context.Context, err error, extra 
 
 // reportWithTimeout executes the report function on all reporters with a timeout.
 func (m *MultiReporter) reportWithTimeout(ctx context.Context, reportFn func(ErrorReporter)) {
-	timeoutCtx, cancel := context.WithTimeout(ctx, DefaultReportTimeout)
+	timeoutCtx, cancel := context.WithTimeout(ctx, m.timeout)
 	defer cancel()
 
 	var wg sync.WaitGroup

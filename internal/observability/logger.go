@@ -27,6 +27,12 @@ const (
 	requestIDKey contextKey = "request_id"
 )
 
+// sensitivePatterns are pre-compiled regex patterns for filtering sensitive data.
+// These are defined at package level to avoid recompilation on every log call.
+var sensitivePatterns = []*regexp.Regexp{
+	regexp.MustCompile(`(?i)(api[_-]?key|secret|token|password|credential|auth)`),
+}
+
 // ParseLevel converts a string level name to a slog.Level.
 func ParseLevel(level string) slog.Level {
 	switch level {
@@ -101,10 +107,8 @@ type sensitiveFieldFilter struct {
 
 func newSensitiveFieldFilter(handler slog.Handler) *sensitiveFieldFilter {
 	return &sensitiveFieldFilter{
-		Handler: handler,
-		patterns: []*regexp.Regexp{
-			regexp.MustCompile(`(?i)(api[_-]?key|secret|token|password|credential|auth)`),
-		},
+		Handler:  handler,
+		patterns: sensitivePatterns,
 	}
 }
 

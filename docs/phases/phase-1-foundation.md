@@ -383,14 +383,27 @@ require (
 
 ### Code Review Improvements (2026-01-31)
 
-1. **Goroutine Leak Fix**: `Registry.Execute()` now uses select when sending to result channel to prevent goroutine leaks on timeout
-2. **Thread Safety**: `Timeout()` method now uses read lock for thread-safe access
-3. **RegisterFactory Error Handling**: Now returns `ErrDuplicateFactory` instead of silently overwriting
-4. **Request ID Priority**: `LogReporter` now correctly prioritizes AppError's RequestID over context
-5. **Parameter Type Validation**: Added `validateParamType()` for runtime type checking
-6. **Default Value Application**: `Execute()` now applies default values from schema
-7. **Parallel MultiReporter**: `MultiReporter` now executes reporters concurrently
-8. **Immutable Params**: `Execute()` copies params to avoid mutating caller's map
+**Performance & Memory:**
+1. **Logger Regex Optimization**: Moved sensitive data filtering regex patterns to package-level variables to avoid recompilation on every logger initialization
+2. **Goroutine Leak Fix**: `Registry.Execute()` now uses `<-timeoutCtx.Done()` instead of `default` case to properly handle context cancellation and prevent goroutine leaks
+3. **Immutable Params**: `Execute()` copies params map to avoid mutating caller's data
+
+**Type System & Validation:**
+4. **Number Type Support**: Added `number` type validation for float32/float64 in addition to existing `integer` type
+5. **Allowed Values Validation**: Implemented validation for `Parameter.Allowed` field to support enum-style constraints
+6. **Parameter Type Validation**: Enhanced `validateParamType()` to validate string enum values against allowed list
+
+**Error Handling:**
+7. **AppError.Is Fix**: Simplified `AppError.Is()` implementation to use direct type assertion instead of `errors.As`, providing more predictable behavior
+8. **Request ID Priority**: `LogReporter` now correctly prioritizes AppError's RequestID over context RequestID
+
+**Configuration & Flexibility:**
+9. **MultiReporter Configurable Timeout**: Added `WithTimeout()` method to allow custom timeout configuration (default: 5s)
+10. **Environment Variable Documentation**: Added documentation note that nested variable substitution (e.g., `${VAR1:-${VAR2}}`) is not supported
+
+**Testing:**
+11. **Test Timing Constants**: Replaced magic numbers in timeout tests with named constants (`testShortTimeout`, `testLongOperation`) for reliability across different environments
+12. **Enhanced Test Coverage**: Added tests for number type validation, allowed values validation, and MultiReporter timeout configuration
 
 ---
 

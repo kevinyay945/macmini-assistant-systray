@@ -12,6 +12,12 @@ import (
 	"github.com/kevinyay945/macmini-assistant-systray/internal/registry"
 )
 
+// Test timing constants - using multiples to ensure reliable timeout behavior.
+const (
+	testShortTimeout  = 50 * time.Millisecond  // Short timeout for testing
+	testLongOperation = 200 * time.Millisecond // 4x timeout to ensure timeout triggers reliably
+)
+
 // mockTool implements registry.Tool for testing.
 type mockTool struct {
 	name        string
@@ -222,7 +228,7 @@ func TestRegistry_Execute_MissingRequiredParam(t *testing.T) {
 }
 
 func TestRegistry_Execute_WithTimeout(t *testing.T) {
-	r := registry.New(registry.WithTimeout(50 * time.Millisecond))
+	r := registry.New(registry.WithTimeout(testShortTimeout))
 	r.MustRegister(&mockTool{
 		name: "slow_tool",
 		schema: registry.ToolSchema{
@@ -230,7 +236,7 @@ func TestRegistry_Execute_WithTimeout(t *testing.T) {
 		},
 		executeFunc: func(ctx context.Context, _ map[string]interface{}) (map[string]interface{}, error) {
 			select {
-			case <-time.After(200 * time.Millisecond):
+			case <-time.After(testLongOperation):
 				return map[string]interface{}{"result": "done"}, nil
 			case <-ctx.Done():
 				return nil, ctx.Err()
@@ -517,5 +523,91 @@ func TestRegistry_Execute_DoesNotMutateOriginalParams(t *testing.T) {
 	// Check that original params were not modified
 	if _, exists := originalParams["optional_with_default"]; exists {
 		t.Error("Execute() should not mutate original params map")
+	}
+}
+
+func TestRegistry_Execute_NumberType(t *testing.T) {
+	tests := []struct {
+		name  string
+		value interface{}
+	}{
+		{"float64", float64(3.14)},
+		{"float32", float32(3.14)},
+		{"int", 42},
+		{"int64", int64(42)},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			r := registry.New()
+			r.MustRegister(&mockTool{
+				name: "test_tool",
+				schema: registry.ToolSchema{
+					Inputs: []registry.Parameter{
+						{Name: "param", Type: "number", Required: true},
+					},
+				},
+			})
+
+			_, err := r.Execute(context.Background(), "test_tool", map[string]interface{}{
+				"param": tt.value,
+			})
+			if err != nil {
+				t.Errorf("Execute() returned error for valid number %v: %v", tt.value, err)
+			}
+		})
+	}
+}
+
+func TestRegistry_Execute_NumberType_Invalid(t *testing.T) {
+	r := registry.New()
+	r.MustRegister(&mockTool{
+		name: "test_tool",
+		schema: registry.ToolSchema{
+			Inputs: []registry.Parameter{
+				{Name: "param", Type: "number", Required: true},
+			},
+		},
+	})
+
+	_, err := r.Execute(context.Background(), "test_tool", map[string]interface{}{
+		"param": "not-a-number",
+	})
+	if err == nil {
+		t.Error("Execute() should return error for invalid number type")
+	}
+	if !errors.Is(err, registry.ErrInvalidParamType) {
+		t.Errorf("Expected ErrInvalidParamType, got: %v", err)
+	}
+}
+
+func TestRegistry_Execute_AllowedValues(t *testing.T) {
+	r := registry.New()
+	r.MustRegister(&mockTool{
+		name: "test_tool",
+		schema: registry.ToolSchema{
+			Inputs: []registry.Parameter{
+				{Name: "format", Type: "string", Required: true, Allowed: []string{"mp4", "mkv", "avi"}},
+			},
+		},
+	})
+
+	// Valid value
+	_, err := r.Execute(context.Background(), "test_tool", map[string]interface{}{
+		"format": "mp4",
+	})
+	if err != nil {
+		t.Errorf("Execute() returned error for valid allowed value: %v", err)
+	}
+
+	// Invalid value
+	_, err = r.Execute(context.Background(), "test_tool", map[string]interface{}{
+		"format": "invalid_format",
+	})
+	if err == nil {
+		t.Error("Execute() should return error for value not in allowed list")
+	}
+	if !errors.Is(err, registry.ErrInvalidParamType) {
+		t.Errorf("Expected ErrInvalidParamType, got: %v", err)
 	}
 }
