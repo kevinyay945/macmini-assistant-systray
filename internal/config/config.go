@@ -176,7 +176,7 @@ func WriteDefaultConfig(path string) error {
 
 	// Create parent directory if it doesn't exist
 	dir := filepath.Dir(path)
-	if err := os.MkdirAll(dir, 0o755); err != nil {
+	if err := os.MkdirAll(dir, 0o750); err != nil {
 		return fmt.Errorf("failed to create config directory: %w", err)
 	}
 
@@ -188,7 +188,7 @@ func WriteDefaultConfig(path string) error {
 	// Add header comment
 	header := "# MacMini Assistant Configuration\n# See docs/phases/phase-1-foundation.md for full schema documentation\n\n"
 
-	if err := os.WriteFile(path, []byte(header+string(data)), 0o644); err != nil {
+	if err := os.WriteFile(path, []byte(header+string(data)), 0o600); err != nil {
 		return fmt.Errorf("failed to write config file: %w", err)
 	}
 
