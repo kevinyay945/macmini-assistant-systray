@@ -52,7 +52,7 @@ run:
 # Initialize development environment
 init:
 	@echo "Installing development dependencies..."
-	@command -v golangci-lint > /dev/null 2>&1 || go install github.com/golangci/golangci-lint/cmd/golangci-lint/v2@latest
+	@command -v golangci-lint > /dev/null 2>&1 || go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
 	@command -v goreleaser > /dev/null 2>&1 || go install github.com/goreleaser/goreleaser@latest
 	@command -v pre-commit > /dev/null 2>&1 || (echo "Installing pre-commit..." && brew install pre-commit)
 	@[ -f .git/hooks/pre-commit ] || pre-commit install

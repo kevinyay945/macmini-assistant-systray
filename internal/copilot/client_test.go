@@ -16,10 +16,47 @@ func TestClient_New(t *testing.T) {
 	}
 }
 
+func TestClient_NewClient(t *testing.T) {
+	client, err := copilot.NewClient(copilot.Config{APIKey: "test-key"})
+	if err != nil {
+		t.Errorf("NewClient() returned error: %v", err)
+	}
+	if client == nil {
+		t.Error("NewClient() returned nil")
+	}
+}
+
 func TestClient_New_EmptyConfig(t *testing.T) {
 	client := copilot.New(copilot.Config{})
 	if client == nil {
 		t.Error("New() with empty config returned nil")
+	}
+}
+
+func TestClient_NewClient_WithTimeout(t *testing.T) {
+	timeout := 5 * time.Minute
+	client, err := copilot.NewClient(copilot.Config{
+		APIKey:  "test-key",
+		Timeout: timeout,
+	})
+	if err != nil {
+		t.Errorf("NewClient() returned error: %v", err)
+	}
+	if client == nil {
+		t.Error("NewClient() returned nil")
+	}
+	if client.Timeout() != timeout {
+		t.Errorf("Timeout() = %v, want %v", client.Timeout(), timeout)
+	}
+}
+
+func TestClient_NewClient_DefaultTimeout(t *testing.T) {
+	client, err := copilot.NewClient(copilot.Config{APIKey: "test-key"})
+	if err != nil {
+		t.Errorf("NewClient() returned error: %v", err)
+	}
+	if client.Timeout() != copilot.DefaultTimeout {
+		t.Errorf("Timeout() = %v, want %v", client.Timeout(), copilot.DefaultTimeout)
 	}
 }
 
@@ -59,17 +96,41 @@ func TestClient_ProcessMessage_ContextDeadlineExceeded(t *testing.T) {
 	}
 }
 
-func TestClient_ProcessMessage_ValidRequest(t *testing.T) {
+func TestClient_ProcessMessage_ClientNotStarted(t *testing.T) {
 	client := copilot.New(copilot.Config{APIKey: "test-key"})
 	ctx := context.Background()
 
-	// Currently returns empty string as TODO implementation
-	result, err := client.ProcessMessage(ctx, "hello")
-	if err != nil {
-		t.Errorf("ProcessMessage() returned error: %v", err)
+	// Client not started should return ErrClientNotStarted
+	_, err := client.ProcessMessage(ctx, "hello")
+	if err == nil {
+		t.Error("ProcessMessage() should return error when client is not started")
 	}
-	// Empty result is expected for stub implementation
-	if result != "" {
-		t.Errorf("ProcessMessage() = %q, want empty string (stub)", result)
+	if !errors.Is(err, copilot.ErrClientNotStarted) {
+		t.Errorf("ProcessMessage() error = %v, want ErrClientNotStarted", err)
+	}
+}
+
+func TestClient_IsStarted_Default(t *testing.T) {
+	client := copilot.New(copilot.Config{APIKey: "test-key"})
+	if client.IsStarted() {
+		t.Error("IsStarted() should return false for new client")
+	}
+}
+
+func TestResponse_Fields(t *testing.T) {
+	resp := &copilot.Response{
+		Text:     "test response",
+		Data:     map[string]interface{}{"key": "value"},
+		ToolName: "test_tool",
+	}
+
+	if resp.Text != "test response" {
+		t.Errorf("Text = %q, want %q", resp.Text, "test response")
+	}
+	if resp.Data["key"] != "value" {
+		t.Errorf("Data[key] = %v, want %v", resp.Data["key"], "value")
+	}
+	if resp.ToolName != "test_tool" {
+		t.Errorf("ToolName = %q, want %q", resp.ToolName, "test_tool")
 	}
 }
