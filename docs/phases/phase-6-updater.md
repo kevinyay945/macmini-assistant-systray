@@ -1,7 +1,7 @@
 # Phase 6: Auto-updater
 
 **Duration**: Week 10
-**Status**: ⚪ Not Started
+**Status**: 🟢 Completed
 **Goal**: Implement self-updating from GitHub releases
 
 ---
@@ -15,14 +15,14 @@ This phase implements automatic updates from GitHub releases. The updater will p
 ## 6.1 Update Checker
 
 **Duration**: 2 days
-**Status**: ⚪ Not Started
+**Status**: 🟢 Completed
 
 ### Tasks
 
-- [ ] GitHub Releases API polling
-- [ ] Version comparison (SemVer)
-- [ ] Periodic check (every 6 hours)
-- [ ] Manual trigger from tray menu
+- [x] GitHub Releases API polling
+- [x] Version comparison (SemVer)
+- [x] Periodic check (every 6 hours)
+- [x] Manual trigger from tray menu
 
 ### Implementation Details
 
@@ -160,30 +160,34 @@ func TestUpdateChecker_RateLimiting(t *testing.T)
 
 ### Acceptance Criteria
 
-- [ ] Polls releases every 6 hours
-- [ ] Detects newer versions correctly
-- [ ] Manual check available
-- [ ] No API rate limit issues
-- [ ] Handles network errors gracefully
+- [x] Polls releases every 6 hours
+- [x] Detects newer versions correctly
+- [x] Manual check available
+- [x] No API rate limit issues
+- [x] Handles network errors gracefully
 
 ### Notes
 
-<!-- Add your notes here -->
+Implementation completed with:
+- `internal/updater/checker.go` - GitHub Releases API polling
+- `internal/updater/checker_test.go` - Comprehensive test coverage
+- Uses `Masterminds/semver/v3` for version comparison (already in dependencies)
+- Configurable check interval with `WithCheckInterval` option
 
 ---
 
 ## 6.2 Binary Updater
 
 **Duration**: 3 days
-**Status**: ⚪ Not Started
+**Status**: 🟢 Completed
 
 ### Tasks
 
-- [ ] Download release binary
-- [ ] Checksum verification
-- [ ] Atomic binary replacement
-- [ ] Graceful restart
-- [ ] Rollback on failure
+- [x] Download release binary
+- [x] Checksum verification
+- [x] Atomic binary replacement
+- [x] Graceful restart
+- [x] Rollback on failure
 
 ### Implementation Details
 
@@ -352,15 +356,20 @@ func TestUpdater_MissingAsset(t *testing.T)
 
 ### Acceptance Criteria
 
-- [ ] Binary downloads and verifies checksums
-- [ ] Replacement is atomic (no partial updates)
-- [ ] App restarts automatically after update
-- [ ] Rolls back if new version crashes on startup
-- [ ] User notified of update status
+- [x] Binary downloads and verifies checksums
+- [x] Replacement is atomic (no partial updates)
+- [x] App restarts automatically after update
+- [x] Rolls back if new version crashes on startup
+- [x] User notified of update status
 
 ### Notes
 
-<!-- Add your notes here -->
+Implementation completed with:
+- `internal/updater/updater.go` - Full binary update implementation
+- Uses `github.com/inconshreveable/go-update` for atomic binary replacement
+- SHA256 checksum verification from `checksums.txt` file
+- tar.gz extraction for platform-specific binaries
+- Automatic rollback on failure via go-update
 
 ---
 
@@ -368,10 +377,10 @@ func TestUpdater_MissingAsset(t *testing.T)
 
 By the end of Phase 6:
 
-- [ ] Automatic update checking every 6 hours
-- [ ] Manual update check from tray menu
-- [ ] Safe binary replacement with rollback
-- [ ] Graceful restart after update
+- [x] Automatic update checking every 6 hours
+- [x] Manual update check from tray menu
+- [x] Safe binary replacement with rollback
+- [x] Graceful restart after update
 
 ---
 
@@ -381,7 +390,7 @@ By the end of Phase 6:
 // go.mod additions
 require (
     github.com/inconshreveable/go-update v0.0.0-20160112193335-8152e7eb6ccf
-    golang.org/x/mod v0.x.x
+    github.com/Masterminds/semver/v3 v3.4.0  // Already in dependencies
 )
 ```
 
